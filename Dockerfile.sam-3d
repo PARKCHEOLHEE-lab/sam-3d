@@ -1,0 +1,23 @@
+FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-devel
+
+# Install dependencies for vessl
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    openssh-server \
+    bash-completion
+    
+# Install dependencies for vessl
+RUN pip install --upgrade pip && pip install --no-cache-dir \
+    vessl \
+    jupyterlab \
+    jupyterlab-git \
+    ipywidgets
+
+ENV PIP_EXTRA_INDEX_URL="https://pypi.ngc.nvidia.com https://download.pytorch.org/whl/cu121"
+ENV PIP_FIND_LINKS="https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.5.1_cu121.html"
+
+# echo 'set -o emacs' >> ~/.bashrc
+# echo 'bind "\C-f": forward-word' >> ~/.bashrc
+# echo 'bind "\C-b": backward-word' >> ~/.bashrc
+# source ~/.bashrc
