@@ -21,7 +21,7 @@ from easydict import EasyDict as edict
 import warnings
 
 try:
-    from diff_gaussian_rasterization import (
+    from fast_gauss import (
         GaussianRasterizer,
         GaussianRasterizationSettings,
     )
