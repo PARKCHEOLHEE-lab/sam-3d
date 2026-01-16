@@ -552,6 +552,7 @@ class InferencePipeline:
                 with_texture_baking=with_texture_baking,
                 use_vertex_color=use_vertex_color,
                 rendering_engine=self.rendering_engine,
+                fill_holes=False,
             )
 
         # glb.export("sample.glb")
