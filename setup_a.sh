@@ -11,11 +11,20 @@ pip install --no-build-isolation "gsplat @ git+https://github.com/nerfstudio-pro
 pip install --no-build-isolation "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git@75ebeeaea0908c5527e7b1e305fbc7681382db47"
 pip install --no-build-isolation flash_attn==2.8.3
 
-pip install -e .
-pip install -e '.[dev]'
-pip install -e '.[inference]'
-
-pip install 'huggingface-hub[cli]<1.0'
-pip install hydra-core==1.3.2
+pip install -r requirements.txt
+pip install \
+    pytest \
+    findpydeps \
+    pipdeptree \
+    lovely_tensors \
+    nvitop \
+    snakeviz \
+    kaolin==0.17.0 \
+    seaborn==0.13.2 \
+    gradio==5.49.0 \
+    ImageIO==2.37.2 \
+    utils3d==0.0.2 \
+    "huggingface-hub[cli]<1.0" \
+    hydra-core==1.3.2
 
 ./patching/hydra 

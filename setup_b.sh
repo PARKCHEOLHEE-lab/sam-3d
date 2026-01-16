@@ -8,7 +8,7 @@ HUGGINGFACE_TOKEN="${HUGGINGFACE_TOKEN}"
 
 if [ -z "$HUGGINGFACE_TOKEN" ]; then
     echo "HUGGINGFACE_TOKEN is not set"
-    echo "Please export HUGGINGFACE_TOKEN as an environment variable"
+    echo "Please export HUGGINGFACE_TOKEN as an environment variable using the command: export HUGGINGFACE_TOKEN=<your_huggingface_token>"
     exit 1
 fi
 
