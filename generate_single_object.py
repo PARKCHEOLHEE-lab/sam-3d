@@ -9,10 +9,16 @@ import PIL.Image
 
 from loguru import logger
 
-
 sys.path.append("notebook")
 
-from inference import Inference, load_image, load_single_mask, make_scene, ready_gaussian_for_video_rendering, render_video
+from inference import (
+    Inference, 
+    load_image, 
+    load_single_mask, 
+    make_scene, 
+    ready_gaussian_for_video_rendering,
+    render_video
+)
 
 
 def parse_args() -> argparse.Namespace:
