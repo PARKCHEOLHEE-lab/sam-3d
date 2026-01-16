@@ -2,7 +2,6 @@
 import os
 import sys
 import pytz
-import shutil
 import datetime
 import argparse
 import PIL.Image
