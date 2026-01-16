@@ -1,5 +1,0 @@
-kaolin==0.17.0
-seaborn==0.13.2
-gradio==5.49.0
-ImageIO==2.37.2
-utils3d==0.0.2
