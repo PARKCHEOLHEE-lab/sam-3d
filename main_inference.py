@@ -152,6 +152,7 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
         
 
 def generate_multi_object(args: argparse.Namespace, output_path: str, use_inference_cache: bool = False) -> None:
+    # TODO: implement multi object inference to combine multiple objects into a single scene
     # https://github.com/facebookresearch/sam-3d-objects/issues/36
     
     # load model
