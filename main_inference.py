@@ -124,7 +124,7 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
     else:
         config_path = f"checkpoints/hf/pipeline.yaml"
         inference = Inference(config_path, compile=False)
-
+        
     # load image (RGBA only, mask is embedded in the alpha channel)
     image = load_image(args.image_path)
     mask = load_single_mask(os.path.dirname(args.image_path), index=args.mask_index)
@@ -134,8 +134,8 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
 
     # export gaussian splat and mesh
     logger.info(f"Exporting gaussian splat and mesh...")
-    output["gs"].save_ply(os.path.join(output_path, "splat.ply"))
-    output["glb"].export(os.path.join(output_path, "mesh.glb"))
+    output["gs"].save_ply(os.path.join(output_path, f"splat_{args.mask_index:03d}.ply"))
+    output["glb"].export(os.path.join(output_path, f"mesh_{args.mask_index:03d}.glb"))
     logger.info(f"Gaussian splat and mesh exported")
 
     if args.export_images:
