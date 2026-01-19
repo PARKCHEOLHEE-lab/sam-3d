@@ -146,6 +146,7 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
         
         make_video(output, output_path)
 
+    del output
     if not use_inference_cache:
         del inference
         
@@ -184,6 +185,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
 
         make_video(outputs, output_path)
         
+    del outputs
     if not use_inference_cache:
         del inference
         
