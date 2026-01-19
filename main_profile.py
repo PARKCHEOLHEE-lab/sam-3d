@@ -147,6 +147,12 @@ if __name__ == "__main__":
                     logger.error(f"Error at mask index {mask_index}: {e}")
             
             df = pd.DataFrame(rows, columns=columns)
+            df = df.sort_values(by="mask_index", ascending=True)
+            
+            mean_s = df.drop(columns=["mask_index"]).mean()
+            mean_row = {"mask_index": "mean", **mean_s.to_dict()}
+
+            df = pd.concat([df, pd.DataFrame([mean_row], columns=df.columns)], ignore_index=True)
             df.to_csv(os.path.join(output_path, "_elapsed_time.csv"), index=False)
             
         else:
