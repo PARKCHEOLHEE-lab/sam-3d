@@ -133,10 +133,10 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
     output = inference(image, mask, seed=42)
 
     # export gaussian splat and mesh
-    logger.info(f"Exporting gaussian splat and mesh...")
+    logger.info(f"Exporting gaussian splat and mesh for mask index {args.mask_index:03d}...")
     output["gs"].save_ply(os.path.join(output_path, f"splat_{args.mask_index:03d}.ply"))
     output["glb"].export(os.path.join(output_path, f"mesh_{args.mask_index:03d}.glb"))
-    logger.info(f"Gaussian splat and mesh exported")
+    logger.info(f"Gaussian splat and mesh for mask index {args.mask_index:03d} exported")
 
     if args.export_images:
         masked_image = image.copy()
