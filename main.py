@@ -22,7 +22,7 @@ from inference import (
 )
 
 
-def parse_args() -> argparse.Namespace:
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--image_path", 
@@ -56,10 +56,22 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def _make_video(output, output_dir) -> None:
+def _make_video(output: dict | list, output_dir: str) -> None:
+    """Make a video from the output.
+
+    Args:
+        output (dict | list): Output from the model. It is a list if is_multi is True, otherwise a dict.
+        output_dir (str): Directory to save the video.
+    """
+    
     # make a video
     logger.info(f"Making a video...")
-    scene_gs = make_scene(output)
+    
+    if isinstance(output, list):
+        scene_gs = make_scene(*output)
+    else:
+        scene_gs = make_scene(output)
+
     scene_gs = ready_gaussian_for_video_rendering(scene_gs)
 
     video = render_video(
@@ -122,20 +134,57 @@ def generate_single_object(args: argparse.Namespace) -> None:
 
 
 def generate_multi_object(args: argparse.Namespace) -> None:
+    
+    # load model
+    config_path = f"checkpoints/hf/pipeline.yaml"
+    inference = Inference(config_path, compile=False)
 
-    output = None
+    # load image (RGBA only, mask is embedded in the alpha channel)
+    image = load_image(args.image_path)
+    
+    masks = load_masks(os.path.dirname(args.image_path), extension=".png")
+    
+    outputs = [inference(image, mask, seed=42) for mask in masks]
 
     # make output directory
     output_dir = _make_output_dir()
+    
+    for oi, output in enumerate(outputs):
+        # export gaussian splat and mesh
+        logger.info(f"Exporting gaussian splat and mesh for object {oi:03d}...")
+        output["gs"].save_ply(os.path.join(output_dir, f"splat_{oi:03d}.ply"))
+        output["glb"].export(os.path.join(output_dir, f"mesh_{oi:03d}.glb"))
+    
+    for mi, mask in enumerate(masks):
+        masked_image = image.copy()
+        masked_image[mask == 0] = 0
+        PIL.Image.fromarray(masked_image).save(os.path.join(output_dir, f"_masked_{mi:03d}.png"))
+
+    PIL.Image.fromarray(image).save(os.path.join(output_dir, "_image.png"))
 
     if args.gif:
-        _make_video(output, output_dir)
+        _make_video(outputs, output_dir)
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    args = _parse_args()
     
     if args.mask_index == -1:
+        """
+        python main.py \
+            --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
+            --mask_index=-1 \
+            --output_dir=output \
+            --gif=true
+        """
         generate_multi_object(args)
+        
     else:
+        """
+        python main.py \
+            --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
+            --mask_index=14 \
+            --output_dir=output \
+            --gif=true
+        """
         generate_single_object(args)
