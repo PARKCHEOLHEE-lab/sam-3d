@@ -273,8 +273,3 @@ if __name__ == "__main__":
             assert len(elapsed_times) == active
 
             logger.success(f"Average elapsed time of active steps: {sum(elapsed_times) / active:.4f} seconds")
-            logger.info(f"Saving profiler summary...")
-            with open(os.path.join(output_path, f"_profile.txt"), "w") as f:
-                f.write(profiler.key_averages().table(sort_by="cuda_time_total", row_limit=10))
-            
-            
