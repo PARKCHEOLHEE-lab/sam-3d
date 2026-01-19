@@ -1,17 +1,13 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 import os
-import gc
 import sys
-import time
 import pytz
-import torch
 import imageio
 import datetime
 import argparse
 import PIL.Image
 
 from loguru import logger
-from torch.profiler import profile as torch_profile, ProfilerActivity, record_function
 
 sys.path.append("notebook")
 
@@ -52,31 +48,18 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default="false"
     )
-    parser.add_argument(
-        "--profile",
-        type=str,
-        default="false"
-    )
-    parser.add_argument(
-        "--use_inference_cache",
-        type=str,
-        default="false"
-    )
+    
     args = parser.parse_args()
     
     assert args.mask_index >= -1
     assert args.export_images in ["true", "false"]
-    assert args.profile in ["true", "false"]
-    assert args.use_inference_cache in ["true", "false"]
 
     args.export_images = args.export_images == "true"
-    args.profile = args.profile == "true"
-    args.use_inference_cache = args.use_inference_cache == "true"
     
     return args
 
 
-def _make_video(output: dict | list, output_dir: str) -> None:
+def make_video(output: dict | list, output_dir: str) -> None:
     """Make a video from the output.
 
     Args:
@@ -133,10 +116,10 @@ def _cache_inference():
     return inference
 
 
-def generate_single_object(args: argparse.Namespace, output_path: str) -> None:
+def generate_single_object(args: argparse.Namespace, output_path: str, use_inference_cache: bool = False) -> None:
     
     # load model
-    if args.use_inference_cache:
+    if use_inference_cache:
         inference = _cache_inference()
     else:
         config_path = f"checkpoints/hf/pipeline.yaml"
@@ -161,17 +144,17 @@ def generate_single_object(args: argparse.Namespace, output_path: str) -> None:
         PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{args.mask_index:03d}.png"))
         PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
         
-        _make_video(output, output_path)
+        make_video(output, output_path)
 
-    if not args.use_inference_cache:
+    if not use_inference_cache:
         del inference
         
 
-def generate_multi_object(args: argparse.Namespace, output_path: str) -> None:
+def generate_multi_object(args: argparse.Namespace, output_path: str, use_inference_cache: bool = False) -> None:
     # https://github.com/facebookresearch/sam-3d-objects/issues/36
     
     # load model
-    if args.use_inference_cache:
+    if use_inference_cache:
         inference = _cache_inference()
     else:
         config_path = f"checkpoints/hf/pipeline.yaml"
@@ -199,9 +182,9 @@ def generate_multi_object(args: argparse.Namespace, output_path: str) -> None:
 
         PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
 
-        _make_video(outputs, output_path)
+        make_video(outputs, output_path)
         
-    if not args.use_inference_cache:
+    if not use_inference_cache:
         del inference
         
 
@@ -209,18 +192,16 @@ if __name__ == "__main__":
     
     """
     for multi object:
-        python main.py \
+        python main_inference.py \
             --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
             --mask_index=-1 \
-            --profile=true \
-            --use_inference_cache=true
+            --export_images=true
         
     for single object:
-        python main.py \
+        python main_inference.py \
             --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
             --mask_index=14 \
-            --profile=true \
-            --use_inference_cache=false
+            --export_images=true
     """
     
     # parse arguments
@@ -234,42 +215,5 @@ if __name__ == "__main__":
     if args.mask_index == -1:
         generator = generate_multi_object
         
-    # inference w/o profiling
-    if not args.profile:
-        generator(args, output_path)
+    generator(args, output_path)
             
-    # inference w/ profiling
-    else:
-        wait = 1
-        warmup = 1
-        active = 1
-        
-        with torch_profile(
-            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], 
-            schedule=torch.profiler.schedule(wait=wait, warmup=warmup, active=active),
-        ) as profiler:
-            
-            elapsed_times = []
-            with record_function("model_inference"):
-                for i in range(wait + warmup + active):
-                    start = time.perf_counter()
-
-                    generator(args, output_path)
-
-                    torch.cuda.synchronize()
-                    end = time.perf_counter()
-                    
-                    gc.collect()
-                    torch.cuda.empty_cache()
-                    
-                    profiler.step()
-                    if i + 1 > wait + warmup:
-                        elapsed_times.append(end - start)
-                        logger.success(f"Active step {i - wait - warmup + 1:03d} elapsed time: {elapsed_times[-1]:.4f} seconds")
-
-            if "inference" in CACHE:
-                del CACHE["inference"]
-            
-            assert len(elapsed_times) == active
-
-            logger.success(f"Average elapsed time of active steps: {sum(elapsed_times) / active:.4f} seconds")
