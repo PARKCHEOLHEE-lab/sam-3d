@@ -10,19 +10,7 @@ import pandas as pd
 from loguru import logger
 from torch.profiler import profile as torch_profile, ProfilerActivity, record_function
 
-sys.path.append("notebook")
-
-from inference import (
-    Inference, 
-    load_image, 
-    load_single_mask, 
-    load_masks,
-    make_scene, 
-    ready_gaussian_for_video_rendering,
-    render_video
-)
-
-from main_inference import generate_single_object, generate_multi_object, make_video
+from main_inference import generate_single_object, generate_multi_object
 
 
 CACHE = {"inference": None}
@@ -109,10 +97,6 @@ if __name__ == "__main__":
             
             columns = ["mask_index"] + [f"elapsed_time_at_active_step_{k:03d}" for k in range(1, args.active + 1)] + ["elapsed_time_average"]
             rows = []
-            
-            # warm up without profilling
-            args.mask_index = 0
-            generator(args, output_path, use_inference_cache=args.use_inference_cache)
             
             mask_indices = range(len(os.listdir(os.path.dirname(args.image_path))) - 1)
             for mask_index in reversed(mask_indices):
