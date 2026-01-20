@@ -221,9 +221,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             glb = output["glb"]
             
             vertices_torch = torch.from_numpy(np.asarray(glb.vertices)).to(output["rotation"].device).to(output["rotation"].dtype)
-
             vertices_torch = vertices_torch * output["scale"][0]
-            vertices_torch = vertices_torch @ quaternion_to_matrix(output["rotation"])[0]
             vertices_torch = vertices_torch + output["translation"][0]
             
             glb.vertices = vertices_torch.detach().cpu().numpy()
