@@ -68,6 +68,9 @@ def _parse_args() -> argparse.Namespace:
     args.use_inference_cache = args.use_inference_cache == "true"
     args.save_profile_summary = args.save_profile_summary == "true"
 
+    args.export_images = False
+    args.output_format = "glb"
+
     return args
 
 
@@ -75,10 +78,8 @@ def _make_output_dir(output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
 
 
-
 if __name__ == "__main__":
     args = _parse_args()
-    args.export_images = False
         
     generator = generate_single_object
     if args.multi_object:

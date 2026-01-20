@@ -54,11 +54,17 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default="false"
     )
+    parser.add_argument(
+        "--output_format",
+        type=str,
+        default="glb"
+    )
     
     args = parser.parse_args()
     
     assert args.mask_index >= -1
     assert args.export_images in ["true", "false"]
+    assert args.output_format in ["glb", "ply"]
 
     args.export_images = args.export_images == "true"
     
@@ -140,10 +146,13 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
     output = inference(image, mask, seed=42)
 
     # export gaussian splat and mesh
-    logger.info(f"Exporting gaussian splat and mesh for mask index {args.mask_index:03d}...")
-    output["gs"].save_ply(os.path.join(output_path, f"splat_{args.mask_index:03d}.ply"))
-    output["glb"].export(os.path.join(output_path, f"mesh_{args.mask_index:03d}.glb"))
-    logger.info(f"Gaussian splat and mesh for mask index {args.mask_index:03d} exported")
+    if args.output_format == "ply":
+        logger.info(f"Exporting gaussian splat and mesh for mask index {args.mask_index:03d}...")
+        output["gs"].save_ply(os.path.join(output_path, f"splat_{args.mask_index:03d}.ply"))
+    
+    elif args.output_format == "glb":
+        output["glb"].export(os.path.join(output_path, f"mesh_{args.mask_index:03d}.glb"))
+        logger.info(f"Gaussian splat and mesh for mask index {args.mask_index:03d} exported")
 
     if args.export_images:
         masked_image = image.copy()
@@ -266,12 +275,15 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             scene_gs._rotation = torch.cat([scene_gs._rotation, out_gs._rotation], dim=0)
             scene_gs._opacity = torch.cat([scene_gs._opacity, out_gs._opacity], dim=0)
             
-    scene_glb.export(os.path.join(output_path, "_merged_scene.glb"))
-    logger.info(f"Merged scene exported as GLB")
 
-    scene_gs.mininum_kernel_size = minimum_kernel_size
-    scene_gs.save_ply(os.path.join(output_path, "_merged_scene.ply"))
-    logger.info(f"Merged scene exported as PLY")
+    if args.output_format == "ply":
+        scene_gs.mininum_kernel_size = minimum_kernel_size
+        scene_gs.save_ply(os.path.join(output_path, "_merged_scene.ply"))
+        logger.info(f"Merged scene exported as PLY")
+
+    elif args.output_format == "glb":
+        scene_glb.export(os.path.join(output_path, "_merged_scene.glb"))
+        logger.info(f"Merged scene exported as GLB")
 
     if args.export_images:
         for mi, mask in enumerate(masks):
