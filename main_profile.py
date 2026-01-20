@@ -13,8 +13,6 @@ from torch.profiler import profile as torch_profile, ProfilerActivity, record_fu
 from main_inference import generate_single_object, generate_multi_object
 
 
-CACHE = {"inference": None}
-
 
 def _parse_args() -> argparse.Namespace:
 
@@ -77,6 +75,7 @@ def _make_output_dir(output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
 
 
+
 if __name__ == "__main__":
     args = _parse_args()
     args.export_images = False
@@ -128,9 +127,6 @@ if __name__ == "__main__":
                                 elapsed_times.append(end - start)
                                 logger.success(f"Active step {active_step:03d} elapsed time: {elapsed_times[-1]:.4f} seconds")
 
-                        if "inference" in CACHE:
-                            del CACHE["inference"]
-                            
                         assert len(elapsed_times) == args.active
                         elapsed_time_average = sum(elapsed_times) / args.active
                         logger.success(f"Average elapsed time of active steps: {elapsed_time_average:.4f} seconds")
