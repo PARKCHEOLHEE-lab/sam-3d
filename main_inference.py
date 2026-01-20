@@ -169,59 +169,65 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
 
 def generate_multi_object(args: argparse.Namespace, output_path: str, use_inference_cache: bool = False) -> None:
 
-    def _transform_output(output: dict, in_place: bool = False, minimum_kernel_size: float = float("inf")) -> dict:
+    def _transform_output(
+        output: dict, 
+        in_place: bool = False, 
+        minimum_kernel_size: float = float("inf")
+    ) -> dict:
         if not in_place:
             output = deepcopy(output)
-
-        # process gaussian
-        # move gaussians to scene frame of reference
-        PC = SceneVisualizer.object_pointcloud(
-            points_local=output["gaussian"][0].get_xyz.unsqueeze(0),
-            quat_l2c=output["rotation"],
-            trans_l2c=output["translation"],
-            scale_l2c=output["scale"],
-        )
-        output["gaussian"][0].from_xyz(PC.points_list()[0])
-        # must ... ROTATE
-        output["gaussian"][0].from_rotation(
-            quaternion_multiply(
-                quaternion_invert(output["rotation"]),
-                output["gaussian"][0].get_rotation,
+            
+        if args.output_format == "ply":
+            # process gaussian
+            # move gaussians to scene frame of reference
+            PC = SceneVisualizer.object_pointcloud(
+                points_local=output["gaussian"][0].get_xyz.unsqueeze(0),
+                quat_l2c=output["rotation"],
+                trans_l2c=output["translation"],
+                scale_l2c=output["scale"],
             )
-        )
-        scale = output["gaussian"][0].get_scaling
-        adjusted_scale = scale * output["scale"]
-        assert (
-            output["scale"][0, 0].item()
-            == output["scale"][0, 1].item()
-            == output["scale"][0, 2].item()
-        )
-        output["gaussian"][0].mininum_kernel_size *= output["scale"][0, 0].item()
-        adjusted_scale = torch.maximum(
-            adjusted_scale,
-            torch.tensor(
-                output["gaussian"][0].mininum_kernel_size * 1.1,
-                device=adjusted_scale.device,
-            ),
-        )
-        output["gaussian"][0].from_scaling(adjusted_scale)
-        minimum_kernel_size = min(
-            minimum_kernel_size,
-            output["gaussian"][0].mininum_kernel_size,
-        )
-        
-        # process glb
-        glb: trimesh.Trimesh
-        glb = output["glb"]
-        
-        vertices_torch = torch.from_numpy(np.asarray(glb.vertices)).to(output["rotation"].device).to(output["rotation"].dtype)
+            output["gaussian"][0].from_xyz(PC.points_list()[0])
+            # must ... ROTATE
+            output["gaussian"][0].from_rotation(
+                quaternion_multiply(
+                    quaternion_invert(output["rotation"]),
+                    output["gaussian"][0].get_rotation,
+                )
+            )
+            scale = output["gaussian"][0].get_scaling
+            adjusted_scale = scale * output["scale"]
+            assert (
+                output["scale"][0, 0].item()
+                == output["scale"][0, 1].item()
+                == output["scale"][0, 2].item()
+            )
+            output["gaussian"][0].mininum_kernel_size *= output["scale"][0, 0].item()
+            adjusted_scale = torch.maximum(
+                adjusted_scale,
+                torch.tensor(
+                    output["gaussian"][0].mininum_kernel_size * 1.1,
+                    device=adjusted_scale.device,
+                ),
+            )
+            output["gaussian"][0].from_scaling(adjusted_scale)
+            minimum_kernel_size = min(
+                minimum_kernel_size,
+                output["gaussian"][0].mininum_kernel_size,
+            )
+            
+        elif args.output_format == "glb":
+            # process glb
+            glb: trimesh.Trimesh
+            glb = output["glb"]
+            
+            vertices_torch = torch.from_numpy(np.asarray(glb.vertices)).to(output["rotation"].device).to(output["rotation"].dtype)
 
-        vertices_torch = vertices_torch * output["scale"]
-        vertices_torch = vertices_torch @ quaternion_to_matrix(output["rotation"])
-        vertices_torch = vertices_torch + output["translation"]
-        
-        glb.vertices = vertices_torch.detach().cpu().numpy()
-        output["glb"] = glb
+            vertices_torch = vertices_torch * output["scale"]
+            vertices_torch = vertices_torch @ quaternion_to_matrix(output["rotation"])
+            vertices_torch = vertices_torch + output["translation"]
+            
+            glb.vertices = vertices_torch.detach().cpu().numpy()
+            output["glb"] = glb
         
         return output
     
@@ -254,26 +260,28 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             minimum_kernel_size,
             output["gaussian"][0].mininum_kernel_size,
         )
+            
+        if args.output_format == "ply":
+            # merge gaussians
+            if scene_gs is None:
+                scene_gs = output["gaussian"][0]
+                
+            if mask_index > 0 and scene_gs is not None:
+                out_gs = output["gaussian"][0]
+                scene_gs._xyz = torch.cat([scene_gs._xyz, out_gs._xyz], dim=0)
+                scene_gs._features_dc = torch.cat(
+                    [scene_gs._features_dc, out_gs._features_dc], dim=0
+                )
+                scene_gs._scaling = torch.cat([scene_gs._scaling, out_gs._scaling], dim=0)
+                scene_gs._rotation = torch.cat([scene_gs._rotation, out_gs._rotation], dim=0)
+                scene_gs._opacity = torch.cat([scene_gs._opacity, out_gs._opacity], dim=0)
         
-        if isinstance(output["glb"], trimesh.Scene):
-            for geom in output["glb"].geometry.values():
-                scene_glb.add_geometry(geom)
-        else:
-            scene_glb.add_geometry(output["glb"])
-            
-        # merge gaussians
-        if scene_gs is None:
-            scene_gs = output["gaussian"][0]
-            
-        if mask_index > 0 and scene_gs is not None:
-            out_gs = output["gaussian"][0]
-            scene_gs._xyz = torch.cat([scene_gs._xyz, out_gs._xyz], dim=0)
-            scene_gs._features_dc = torch.cat(
-                [scene_gs._features_dc, out_gs._features_dc], dim=0
-            )
-            scene_gs._scaling = torch.cat([scene_gs._scaling, out_gs._scaling], dim=0)
-            scene_gs._rotation = torch.cat([scene_gs._rotation, out_gs._rotation], dim=0)
-            scene_gs._opacity = torch.cat([scene_gs._opacity, out_gs._opacity], dim=0)
+        elif args.output_format == "glb":
+            if isinstance(output["glb"], trimesh.Scene):
+                for geom in output["glb"].geometry.values():
+                    scene_glb.add_geometry(geom)
+            else:
+                scene_glb.add_geometry(output["glb"])
             
 
     if args.output_format == "ply":
