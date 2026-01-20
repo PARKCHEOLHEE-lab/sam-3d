@@ -222,9 +222,9 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             
             vertices_torch = torch.from_numpy(np.asarray(glb.vertices)).to(output["rotation"].device).to(output["rotation"].dtype)
 
-            vertices_torch = vertices_torch * output["scale"]
-            vertices_torch = vertices_torch @ quaternion_to_matrix(output["rotation"])
-            vertices_torch = vertices_torch + output["translation"]
+            vertices_torch = vertices_torch * output["scale"][0]
+            vertices_torch = vertices_torch @ quaternion_to_matrix(output["rotation"])[0]
+            vertices_torch = vertices_torch + output["translation"][0]
             
             glb.vertices = vertices_torch.detach().cpu().numpy()
             output["glb"] = glb
@@ -255,13 +255,13 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
 
         # apply transformation
         output = _transform_output(output, minimum_kernel_size=minimum_kernel_size)
-        
-        minimum_kernel_size = min(
-            minimum_kernel_size,
-            output["gaussian"][0].mininum_kernel_size,
-        )
             
         if args.output_format == "ply":
+            minimum_kernel_size = min(
+                minimum_kernel_size,
+                output["gaussian"][0].mininum_kernel_size,
+            )
+
             # merge gaussians
             if scene_gs is None:
                 scene_gs = output["gaussian"][0]
