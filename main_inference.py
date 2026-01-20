@@ -270,8 +270,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{mi:03d}.png"))
 
         PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
-
-        make_video(outputs, output_path)
         
     del outputs
     if not use_inference_cache:
