@@ -157,6 +157,8 @@ if __name__ == "__main__":
             # generator(args, output_path, use_inference_cache=args.use_inference_cache)
 
             pass
+
+    logger.info("Concatenating elapsed times...")
     
     concatenated = pd.DataFrame()
     for profile_dir in os.listdir(args.output_dir):
@@ -178,3 +180,5 @@ if __name__ == "__main__":
     concatenated = pd.concat([concatenated, pd.DataFrame([mean_row], columns=concatenated.columns)], ignore_index=True)
     
     concatenated.to_csv(os.path.join(args.output_dir, "_elapsed_time_concatenated.csv"), index=False)
+
+    logger.success("Elapsed times concatenated")
