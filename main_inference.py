@@ -63,7 +63,7 @@ def _parse_args() -> argparse.Namespace:
     return args
 
 
-def make_video(output: dict | list, output_dir: str) -> None:
+def make_video(output: dict | list, output_dir: str, scene_gs: SceneVisualizer | None = None) -> None:
     """Make a video from the output.
 
     Args:
@@ -74,10 +74,11 @@ def make_video(output: dict | list, output_dir: str) -> None:
     # make a video
     logger.info(f"Making a video...")
     
-    if isinstance(output, list):
-        scene_gs = make_scene(*output, in_place=True)
-    else:
-        scene_gs = make_scene(output, in_place=True)
+    if scene_gs is None:
+        if isinstance(output, list):
+            scene_gs = make_scene(*output, in_place=True)
+        else:
+            scene_gs = make_scene(output, in_place=True)
 
     scene_gs = ready_gaussian_for_video_rendering(scene_gs)
 
@@ -270,6 +271,8 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{mi:03d}.png"))
 
         PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
+
+        make_video([], output_path, scene_gs=scene_gs)
         
     del outputs
     if not use_inference_cache:
