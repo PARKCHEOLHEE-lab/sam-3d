@@ -157,4 +157,24 @@ if __name__ == "__main__":
             # generator(args, output_path, use_inference_cache=args.use_inference_cache)
 
             pass
+    
+    concatenated = pd.DataFrame()
+    for profile_dir in os.listdir(args.output_dir):
+        if profile_dir.endswith(".csv"):
+            continue
         
+        profile_path = os.path.join(args.output_dir, profile_dir)
+        if not os.path.exists(os.path.join(profile_path, "_elapsed_time.csv")):
+            continue
+        
+        df = pd.read_csv(os.path.join(profile_path, "_elapsed_time.csv"))
+        df["mask_index"] = [f"{mi}_{profile_dir}" for mi in df["mask_index"]]
+        concatenated = pd.concat([concatenated, df], ignore_index=True)
+        
+    concatenated = concatenated[~concatenated["mask_index"].astype(str).str.startswith("mean")]
+        
+    mean_s = concatenated.drop(columns=["mask_index"]).mean()
+    mean_row = {"mask_index": "mean", **mean_s.to_dict()}
+    concatenated = pd.concat([concatenated, pd.DataFrame([mean_row], columns=concatenated.columns)], ignore_index=True)
+    
+    concatenated.to_csv(os.path.join(args.output_dir, "_elapsed_time_concatenated.csv"), index=False)
