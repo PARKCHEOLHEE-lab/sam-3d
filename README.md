@@ -51,7 +51,7 @@ To set up the environment and pre-trained models, run these scripts in order:
     <div align="center" >
         <img src="./media/requesting-access.png">
         <br><br>
-        <i><a href="https://huggingface.co/facebook/sam-3d-objects">Requesting Checkpoints</a></i>
+        <i>Request Form</i>
     </div>
     
     <br>
