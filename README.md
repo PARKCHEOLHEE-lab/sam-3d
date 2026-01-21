@@ -1,152 +1,168 @@
-# SAM 3D
+> [!NOTE] 
+> This README was created with AI help to give you clear setup and usage instructions for sam-3d-objects. 
+>
+> This repository is based on the original code at https://github.com/facebookresearch/sam-3d-objects and the paper https://ai.meta.com/research/publications/sam-3d-3dfy-anything-in-images/.
+>
+> The original README file has been renamed to [_README.md](_README.md).
 
-SAM 3D Objects is one part of SAM 3D, a pair of models for object and human mesh reconstruction.  If you’re looking for SAM 3D Body, [click here](https://github.com/facebookresearch/sam-3d-body).
-
-# SAM 3D Objects
-
-**SAM 3D Team**, [Xingyu Chen](https://scholar.google.com/citations?user=gjSHr6YAAAAJ&hl=en&oi=sra)\*, [Fu-Jen Chu](https://fujenchu.github.io/)\*, [Pierre Gleize](https://scholar.google.com/citations?user=4imOcw4AAAAJ&hl=en&oi=ao)\*, [Kevin J Liang](https://kevinjliang.github.io/)\*, [Alexander Sax](https://alexsax.github.io/)\*, [Hao Tang](https://scholar.google.com/citations?user=XY6Nh9YAAAAJ&hl=en&oi=sra)\*, [Weiyao Wang](https://sites.google.com/view/weiyaowang/home)\*, [Michelle Guo](https://scholar.google.com/citations?user=lyjjpNMAAAAJ&hl=en&oi=ao), [Thibaut Hardin](https://github.com/Thibaut-H), [Xiang Li](https://ryanxli.github.io/)⚬, [Aohan Lin](https://github.com/linaohan), [Jia-Wei Liu](https://jia-wei-liu.github.io/), [Ziqi Ma](https://ziqi-ma.github.io/)⚬, [Anushka Sagar](https://www.linkedin.com/in/anushkasagar/), [Bowen Song](https://scholar.google.com/citations?user=QQKVkfcAAAAJ&hl=en&oi=sra)⚬, [Xiaodong Wang](https://scholar.google.com/citations?authuser=2&user=rMpcFYgAAAAJ), [Jianing Yang](https://jedyang.com/)⚬, [Bowen Zhang](http://home.ustc.edu.cn/~zhangbowen/)⚬, [Piotr Dollár](https://pdollar.github.io/)†, [Georgia Gkioxari](https://georgiagkioxari.com/)†, [Matt Feiszli](https://scholar.google.com/citations?user=A-wA73gAAAAJ&hl=en&oi=ao)†§, [Jitendra Malik](https://people.eecs.berkeley.edu/~malik/)†§
-
-***Meta Superintelligence Labs***
-
-*Core contributor (Alphabetical, Equal Contribution), ⚬Intern, †Project leads, §Equal Contribution
-
-[[`Paper`](https://ai.meta.com/research/publications/sam-3d-3dfy-anything-in-images/)] [[`Code`](https://github.com/facebookresearch/sam-3d-objects)] [[`Website`](https://ai.meta.com/sam3d/)] [[`Demo`](https://www.aidemos.meta.com/segment-anything/editor/convert-image-to-3d)] [[`Blog`](https://ai.meta.com/blog/sam-3d/)] [[`BibTeX`](#citing-sam-3d-objects)] [[`Roboflow`](https://blog.roboflow.com/sam-3d/)]
-
-**SAM 3D Objects** is a foundation model that reconstructs full 3D shape geometry, texture, and layout from a single image, excelling in real-world scenarios with occlusion and clutter by using progressive training and a data engine with human feedback. It outperforms prior 3D generation models in human preference tests on real-world objects and scenes. We released code, weights, online demo, and a new challenging benchmark.
-
-
-<p align="center"><img src="doc/intro.png"/></p>
-
------
-
-<p align="center"><img src="doc/arch.png"/></p>
-
-## Latest updates
-
-**11/19/2025** - Checkpoints Launched, Web Demo and Paper are out.
+<br>
 
 ## Installation
 
-Follow the [setup](doc/setup.md) steps before running the following.
+### Vessl Environment Setup
+To set up the DiffuScene environment in Vessl, set the Custom Image to `docker.io/cjfl2343/sam-3d:0.0.2`. This image was made for this project and has all the required packages already installed. The Docker image comes from the [`Dockerfile.sam-3d`](Dockerfile.sam-3d) file in this repository.
+**Since this image uses CUDA 12.1 and SAM 3D requires at least 32GB of VRAM for multi-object inference, it is recommended to use a node with CUDA version 12.1 or higher** (e.g., `eve-s01`).
 
-## Single or Multi-Object 3D Generation
 
-SAM 3D Objects can convert masked objects in an image, into 3D models with pose, shape, texture, and layout. SAM 3D is designed to be robust in challenging natural images, handling small objects and occlusions, unusual poses, and difficult situations encountered in uncurated natural scenes like this kidsroom:
+<div align="center" >
+    <img src="./media/vessl-image.png">
+    <br><br>
+    <i>Set Custom Image to </i> <code>docker.io/cjfl2343/sam-3d:0.0.2</code>
+</div>
 
-<p align="center">
-  <img src="notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png" width="55%"/>
-  <img src="doc/kidsroom_transparent.gif" width="40%"/>
-</p>
+<br>
 
-For a quick start, run `python demo.py` or use the the following lines of code:
+### Repository Setup
+
+To get started with sam-3d-objects, first clone this repository:
+This will create a folder named `KOCCA-SAM3D` with all necessary source code and scripts.
+
+```bash
+git clone https://github.com/KAIST-VML/KOCCA-SAM3D.git
+cd KOCCA-SAM3D
+```
+
+<br>
+
+## Set Up Environment & Pretined Models 
+
+To set up the environment and pre-trained models, run these scripts in order:
+
+1. Install dependencies:
+
+   ```bash
+   bash setup_a.sh
+   ```
+
+   <br>
+
+2. Request model checkpoints by providing some information at https://huggingface.co/facebook/sam-3d-objects:
+
+    <div align="center" >
+        <img src="./media/requesting-access.png">
+        <br><br>
+        <i><a href="https://huggingface.co/facebook/sam-3d-objects">Requesting Checkpoints</a></i>
+    </div>
+    
+    <br>
+
+
+3. Install pre-trained models(Once your request to access the model checkpoints has been accepted and your Huggingface token has been created):
+
+    ```bash
+    export HUGGINGFACE_TOKEN=<your_huggingface_token>
+    bash setup_b.sh
+    ```
+
+<br>
+
+## Inference
+
+The `main_inference.py` script can generate either a single object or an entire scene from an input image using pre-trained model weights.
+
+Arguments:
+- `--image_path`: Path to the input image (`.png`) file.
+- `--mask_index`: Index of the object mask to process; set to `-1` to process all masks and create a scene.
+- `--output_dir`: Directory to save results.
+- `--export_images`: If `true`, will save inference visualizations (masked objects and composite video).
+- `--output_format`: Output format for 3D objects, `glb` for mesh or `ply` for gaussian splats.
+
+<br> 
+
+### Single Object Inference
+
+To generate a 3D object from a single mask, specify the image path and the index of the mask to use (`--mask_index=N`). For example, to extract the object using mask index 14:
 
 ```python
-import sys
-
-# import inference code
-sys.path.append("notebook")
-from inference import Inference, load_image, load_single_mask
-
-# load model
-tag = "hf"
-config_path = f"checkpoints/{tag}/pipeline.yaml"
-inference = Inference(config_path, compile=False)
-
-# load image and mask
-image = load_image("notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png")
-mask = load_single_mask("notebook/images/shutterstock_stylish_kidsroom_1640806567", index=14)
-
-# run model
-output = inference(image, mask, seed=42)
-
-# export gaussian splat
-output["gs"].save_ply(f"splat.ply")
+python main_inference.py \
+    --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
+    --mask_index=14 \
+    --output_dir=output \
+    --export_images=false \
+    --output_format=glb
 ```
 
-For  more details and multi-object reconstruction, please take a look at out two jupyter notebooks:
-* [single object](notebook/demo_single_object.ipynb)
-* [multi object](notebook/demo_multi_object.ipynb)
+<br>
 
+### Multi Object Inference
 
-## SAM 3D Body
+To generate 3D meshes for all object masks in an input image and combine them into a scene, set `--mask_index=-1`:
 
-[SAM 3D Body (3DB)](https://github.com/facebookresearch/sam-3d-body) is a robust promptable foundation model for single-image 3D human mesh recovery (HMR).
-
-As a way to combine the strengths of both **SAM 3D Objects** and **SAM 3D Body**, we provide an example notebook that demonstrates how to combine the results of both models such that they are aligned in the same frame of reference. Check it out [here](notebook/demo_3db_mesh_alignment.ipynb).
-
-## License
-
-The SAM 3D Objects model checkpoints and code are licensed under [SAM License](./LICENSE).
-
-## Contributing
-
-See [contributing](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md).
-
-## Contributors
-
-The SAM 3D Objects project was made possible with the help of many contributors.
-
-Robbie Adkins,
-Paris Baptiste,
-Karen Bergan,
-Kai Brown,
-Michelle Chan,
-Ida Cheng,
-Khadijat Durojaiye,
-Patrick Edwards,
-Daniella Factor,
-Facundo Figueroa,
-Rene  de la Fuente,
-Eva Galper,
-Cem Gokmen,
-Alex He,
-Enmanuel Hernandez,
-Dex Honsa,
-Leonna Jones,
-Arpit Kalla,
-Kris Kitani,
-Helen Klein,
-Kei Koyama,
-Robert Kuo,
-Vivian Lee,
-Alex Lende,
-Jonny Li,
-Kehan Lyu,
-Faye Ma,
-Mallika Malhotra,
-Sasha Mitts,
-William Ngan,
-George Orlin,
-Peter Park,
-Don Pinkus,
-Roman Radle,
-Nikhila Ravi,
-Azita Shokrpour,
-Jasmine Shone,
-Zayida Suber,
-Phillip Thomas,
-Tatum Turner,
-Joseph Walker,
-Meng Wang,
-Claudette Ward,
-Andrew Westbury,
-Lea Wilken,
-Nan Yang,
-Yael Yungster
-
-
-## Citing SAM 3D Objects
-
-If you use SAM 3D Objects in your research, please use the following BibTeX entry.
-
+```python
+python main_inference.py \
+    --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
+    --mask_index=-1 \
+    --output_dir=output \
+    --export_images=false \
+    --output_format=glb
 ```
-@article{sam3dteam2025sam3d3dfyimages,
-      title={SAM 3D: 3Dfy Anything in Images}, 
-      author={SAM 3D Team and Xingyu Chen and Fu-Jen Chu and Pierre Gleize and Kevin J Liang and Alexander Sax and Hao Tang and Weiyao Wang and Michelle Guo and Thibaut Hardin and Xiang Li and Aohan Lin and Jiawei Liu and Ziqi Ma and Anushka Sagar and Bowen Song and Xiaodong Wang and Jianing Yang and Bowen Zhang and Piotr Dollár and Georgia Gkioxari and Matt Feiszli and Jitendra Malik},
-      year={2025},
-      eprint={2511.16624},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2511.16624}, 
-}
+
+<br>
+
+## Profiling
+
+The `main_profile.py` script benchmarks inference speed for one or more images and outputs per-mask timing statistics.
+
+Arguments:
+- `--images_dir`: Directory containing subfolders for each image, each with its own `image.png` and masks.
+- `--output_dir`: Directory in which to save profiling results, including `_elapsed_time.csv`.
+- `--use_inference_cache`: If `true`, reuses the loaded model between runs (disables reloading overhead).
+- `--save_profile_summary`: If `true`, saves detailed PyTorch profiler summaries at each step.
+- `--wait`: Number of initial steps to skip timing (profiling "wait" phase).
+- `--warmup`: Number of warmup steps before timing.
+- `--active`: Number of measurement steps (timed "active" phase).
+
+<br>
+
+### Profiling All Images
+
+To benchmark inference performance on all images in `./notebook/images/` (approximately 230 total object masks across all images), run:
+ 
+```python
+python main_profile.py \
+    --images_dir=./notebook/images/ \
+    --output_dir=./output/_profile/ \
+    --use_inference_cache=false \
+    --save_profile_summary=false \
+    --wait=0 \
+    --warmup=1 \
+    --acive=3
 ```
+
+<br>
+
+### Methods
+
+Inference was executed for approximately 230 individual objects. For each object, the schedule was set to wait = 0, warmup = 1, active = 3, yielding a total of four runs per object. Only the three active-step wall-clock times were recorded and averaged to produce the reported per-object mean. Timing was measured as the difference of `time.perf_counter()` after calling `torch.cuda.synchronize()` at each iteration to enforce GPU synchronization.
+
+<br>
+
+### Results
+
+On an NVIDIA A5000 GPU (24 GB VRAM), the mean wall-clock time per single-object inference is `37.004264873904155` seconds. If we exclude model-loading overhead, the runtime is expected to decrease by approximately 20%. In this benchmark, the configuration was intentionally conservative: the model was reloaded on every run.
+
+
+| mask_index                                           | elapsed_time_at_active_step_001 | elapsed_time_at_active_step_002 | elapsed_time_at_active_step_003 | elapsed_time_average       |
+|------------------------------------------------------|----------------------------------|----------------------------------|----------------------------------|-----------------------------|
+| 0_kid_box                                            | 45.33452668134123                | 45.4912094604224                 | 45.65570163633674                | 45.49381259270013           |
+| 1_kid_box                                            | 29.45958050340414                | 30.371026386506852               | 30.46039948984981                | 30.097002126586933          |
+| 2_kid_box                                            | 36.62481936812401                | 36.83841050881893                | 37.89146111905575                | 37.11823033199956           |
+| ...                                                  | ...                              | ...                              | ...                              | ...                         |
+| 0_shutterstock_1243680295                            | 31.51510568056256                | 31.225410433486104               | 31.995900759473443               | 31.578805624507368          |
+| 1_shutterstock_1243680295                            | 51.53862490598112                | 51.73792759235948                | 51.409426456317306               | 51.56199298488597           |
+| 2_shutterstock_1243680295                            | 31.32706823106855                | 31.51491724140942                | 31.40297007188201                | 31.41498518145333           |
+| ...                                                  | ...                              | ...                              | ...                              | ...                         |
+| **mean**                                                 | 37.063137248682075               | 36.85683911495199                | 37.09281825807841                | **37.004264873904155**          |
+
+<br>
+For multi-object inference, the pipeline still performs per-object inference independently and then merges the outputs into a single scene. The merging step increases memory requirements, so a GPU with at least 32 GB VRAM is likely necessary. Because multi-object scene generation time depends on the number of object masks in the image ($M$), a practical estimate is $M \times 30$ seconds if one assumes $30$ seconds for single-object generation.
