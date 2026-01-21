@@ -123,6 +123,11 @@ if __name__ == "__main__":
                     row = {"mask_index": mask_index, "elapsed_time_average": elapsed_time_average}
                     row.update({f"elapsed_time_at_active_step_{k + 1:03d}": elapsed_times[k] for k in range(args.active)})
                     rows.append(row)
+        
+                    df = pd.DataFrame(rows, columns=columns)
+                    df = df.sort_values(by="mask_index", ascending=True)
+                    
+                    df.to_csv(os.path.join(output_path, "_elapsed_time.csv"), index=False)
                     
                     if args.save_profile_summary:
                         with open(os.path.join(output_path, f"_profile_summary_{mask_index:03d}.txt"), "w") as f:
