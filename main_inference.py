@@ -27,6 +27,7 @@ from inference import (
     SceneVisualizer
 )
 
+from sam3d_objects.data.dataset.tdfy.transforms_3d import compose_transform
 
 CACHE = {}
 
@@ -216,15 +217,34 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             )
             
         elif args.output_format == "glb":
+            # https://github.com/facebookresearch/sam-3d-objects/issues/56#issuecomment-3614031150
+
+            _R_ZUP_TO_YUP = np.array(
+                [
+                    [1, 0, 0],
+                    [0, 0, 1],
+                    [0, 1, 0],
+                ],
+                dtype=np.float32,
+            )
+            _R_YUP_TO_ZUP = _R_ZUP_TO_YUP.T
+
             # process glb
             glb: trimesh.Trimesh
             glb = output["glb"]
             
-            vertices_torch = torch.from_numpy(np.asarray(glb.vertices)).to(output["rotation"].device).to(output["rotation"].dtype)
-            vertices_torch = vertices_torch * output["scale"][0]
-            vertices_torch = vertices_torch + output["translation"][0]
-            
-            glb.vertices = vertices_torch.detach().cpu().numpy()
+            vertices = glb.vertices.astype(np.float32) @ _R_YUP_TO_ZUP
+            vertices_tensor = torch.from_numpy(vertices).float().to(output["rotation"].device)
+
+            R_l2c = quaternion_to_matrix(output["rotation"])
+            l2c_transform = compose_transform(
+                scale=output["scale"],
+                rotation=R_l2c,
+                translation=output["translation"],
+            )
+            vertices = l2c_transform.transform_points(vertices_tensor.unsqueeze(0))
+            glb.vertices = vertices.squeeze(0).cpu().numpy() @ _R_ZUP_TO_YUP
+
             output["glb"] = glb
         
         return output
@@ -280,7 +300,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
                     scene_glb.add_geometry(geom)
             else:
                 scene_glb.add_geometry(output["glb"])
-            
 
     if args.output_format == "ply":
         scene_gs.mininum_kernel_size = minimum_kernel_size
