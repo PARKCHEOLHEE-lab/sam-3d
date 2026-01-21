@@ -259,6 +259,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
     # load image (RGBA only, mask is embedded in the alpha channel)
     image = load_image(args.image_path)
     masks = load_masks(os.path.dirname(args.image_path), extension=".png")
+    # TODO? : auto masking (create masks from an image by using YOLO)
     
     scene_gs = None
     scene_glb = trimesh.Scene()
