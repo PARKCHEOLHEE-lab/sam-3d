@@ -222,7 +222,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             _R_ZUP_TO_YUP = np.array(
                 [
                     [1, 0, 0],
-                    [0, 0, 1],
+                    [0, 0, -1],
                     [0, 1, 0],
                 ],
                 dtype=np.float32,
