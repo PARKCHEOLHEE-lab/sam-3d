@@ -57,7 +57,7 @@ To set up the environment and pre-trained models, run these scripts in order:
     <br>
 
 
-3. Install pre-trained models(Once your request to access the model checkpoints has been accepted and your Huggingface token has been created):
+3. Install pre-trained models **(Once your request to access the model checkpoints has been accepted and your Huggingface token has been created)**:
 
     ```bash
     export HUGGINGFACE_TOKEN=<your_huggingface_token>
