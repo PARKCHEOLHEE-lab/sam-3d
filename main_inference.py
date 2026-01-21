@@ -266,7 +266,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
 
     for mask_index, mask in enumerate(masks):
         
-        logger.info(f"Running inference for mask index {mask_index:03d}...")
+        logger.info(f"Running inference for mask index {mask_index:03d}/{len(masks) - 1:03d}...")
 
         # run model
         output = inference(image, mask, seed=42)
