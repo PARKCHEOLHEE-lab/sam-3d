@@ -44,18 +44,26 @@ To set up the environment and pre-trained models, run these scripts in order:
    bash setup_a.sh
    ```
 
+   <br>
 
+2. Request model checkpoints at https://huggingface.co/facebook/sam-3d-objects:
 
-<div align="center" >
-    <img src="./media/requesting-access.png">
-    <br><br>
-    <i><a href="https://huggingface.co/facebook/sam-3d-objects">Requesting Checkpoints</a></i>
-</div>
+    <div align="center" >
+        <img src="./media/requesting-access.png">
+        <br><br>
+        <i><a href="https://huggingface.co/facebook/sam-3d-objects">Requesting Checkpoints</a></i>
+    </div>
+    
+    <br>
+
+3. Once your request to access the model checkpoints has been accepted and your Huggingface token has been created:
+
+    ```bash
+    export HUGGINGFACE_TOKEN=<your_huggingface_token>
+    bash setup_b.sh
+    ```
 
 <br>
-
-### Huggingface Access Token
-
 
 ## Inference
 
