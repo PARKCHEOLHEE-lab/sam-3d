@@ -24,21 +24,21 @@ To set up the DiffuScene environment in Vessl, set the Custom Image to `docker.i
 
 ### Repository Setup
 
-To get started with DiffuScene, first clone this repository:
-This will create a folder named `KOCCA-SceneRearrange` with all necessary source code and scripts.
+To get started with sam-3d-objects, first clone this repository:
+This will create a folder named `KOCCA-SAM3D` with all necessary source code and scripts.
 
 ```bash
-git clone https://github.com/KAIST-VML/KOCCA-SceneRearrange.git
-cd KOCCA-SceneRearrange
+git clone https://github.com/KAIST-VML/KOCCA-SAM3D.git
+cd KOCCA-SAM3D
 ```
 
 <br>
 
-## Set Up Dependencies & Pretined Models 
+## Set Up Environment & Pretined Models 
 
 To set up the environment and pre-trained models, run these scripts in order:
 
-1. Install packages:
+1. Install dependencies:
 
    ```bash
    bash setup_a.sh
@@ -46,7 +46,7 @@ To set up the environment and pre-trained models, run these scripts in order:
 
    <br>
 
-2. Request model checkpoints at https://huggingface.co/facebook/sam-3d-objects:
+2. Request model checkpoints by providing some information at https://huggingface.co/facebook/sam-3d-objects:
 
     <div align="center" >
         <img src="./media/requesting-access.png">
@@ -56,7 +56,8 @@ To set up the environment and pre-trained models, run these scripts in order:
     
     <br>
 
-3. Once your request to access the model checkpoints has been accepted and your Huggingface token has been created:
+
+3. Install pre-trained models(Once your request to access the model checkpoints has been accepted and your Huggingface token has been created):
 
     ```bash
     export HUGGINGFACE_TOKEN=<your_huggingface_token>
@@ -67,25 +68,41 @@ To set up the environment and pre-trained models, run these scripts in order:
 
 ## Inference
 
-### Single Object 
+The `main_inference.py` script can generate either a single object or an entire scene from an input image using pre-trained model weights.
+
+Arguments:
+- `--image_path`: Path to the input image (`.png`) file.
+- `--mask_index`: Index of the object mask to process; set to `-1` to process all masks and create a scene.
+- `--output_dir`: Directory to save results.
+- `--export_images`: If `true`, will save inference visualizations (masked objects and composite video).
+- `--output_format`: Output format for 3D objects, `glb` for mesh or `ply` for gaussian splats.
+
+<br> 
+
+### Single Object Inference
+
+To generate a 3D object from a single mask, specify the image path and the index of the mask to use (`--mask_index=N`). For example, to extract the object using mask index 14:
 
 ```python
 python main_inference.py \
     --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
     --mask_index=14 \
-    --ouput_dir=output \
+    --output_dir=output \
     --export_images=false \
     --output_format=glb
 ```
 
 <br>
 
-### Multi Object
+### Multi Object Inference
+
+To generate 3D meshes for all object masks in an input image and combine them into a scene, set `--mask_index=-1`:
+
 ```python
 python main_inference.py \
     --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
     --mask_index=-1 \
-    --ouput_dir=output \
+    --output_dir=output \
     --export_images=false \
     --output_format=glb
 ```
@@ -94,17 +111,35 @@ python main_inference.py \
 
 ## Profiling
 
+The `main_profile.py` script benchmarks inference speed for one or more images and outputs per-mask timing statistics.
+
+Arguments:
+- `--images_dir`: Directory containing subfolders for each image, each with its own `image.png` and masks.
+- `--output_dir`: Directory in which to save profiling results, including `_elapsed_time.csv`.
+- `--use_inference_cache`: If `true`, reuses the loaded model between runs (disables reloading overhead).
+- `--save_profile_summary`: If `true`, saves detailed PyTorch profiler summaries at each step.
+- `--wait`: Number of initial steps to skip timing (profiling "wait" phase).
+- `--warmup`: Number of warmup steps before timing.
+- `--active`: Number of measurement steps (timed "active" phase).
+
+<br>
+
+### Profiling All Images
+
+To benchmark inference performance on all images in `./notebook/images/` (approximately 230 total object masks across all images), run:
  
 ```python
 python main_profile.py \
     --images_dir=./notebook/images/ \
-    --ouput_dir=./output/_profile/ \
+    --output_dir=./output/_profile/ \
     --use_inference_cache=false \
     --save_profile_summary=false \
     --wait=0 \
     --warmup=1 \
     --acive=3
 ```
+
+<br>
 
 ### Methods
 
@@ -130,5 +165,4 @@ On an NVIDIA A5000 GPU (24 GB VRAM), the mean wall-clock time per single-object 
 | **mean**                                                 | 37.063137248682075               | 36.85683911495199                | 37.09281825807841                | **37.004264873904155**          |
 
 <br>
-
 For multi-object inference, the pipeline still performs per-object inference independently and then merges the outputs into a single scene. The merging step increases memory requirements, so a GPU with at least 32 GB VRAM is likely necessary. Because multi-object scene generation time depends on the number of object masks in the image ($M$), a practical estimate is $M \times 30$ seconds if one assumes $30$ seconds for single-object generation.
