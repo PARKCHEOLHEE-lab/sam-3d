@@ -260,21 +260,41 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         model = Sam3Model.from_pretrained("facebook/sam3").to("cuda")
         processor = Sam3Processor.from_pretrained("facebook/sam3")
+        
+        prompts = [ 
+            "interior object", 
+            "furniture", 
+            "plant", 
+            "painting", 
+            "decoration",
+        ]
 
-        inputs = processor(images=image, text="objects", return_tensors="pt").to("cuda")
+        inputs = processor(
+            images=[image.copy() for _ in range(len(prompts))], 
+            text=prompts, 
+            return_tensors="pt",
+        ).to("cuda")
         
         with torch.no_grad():
             outputs = model(**inputs)
+            
+        target_sizes = inputs.get("original_sizes").tolist()
+            
+        del inputs
+        gc.collect()
+        torch.cuda.empty_cache()
         
-        results = processor.post_process_instance_segmentation(
+        segmentations = processor.post_process_instance_segmentation(
             outputs,
-            threshold=0.4,
-            mask_threshold=0.5,
-            target_sizes=inputs.get("original_sizes").tolist()
+            threshold=0.5,
+            mask_threshold=0.4,
+            target_sizes=target_sizes
         )[0]
         
-        masks = results["masks"].cpu().numpy().copy()
+        masks = segmentations["masks"].cpu().numpy().copy()
         assert masks.shape[0] > 0
+        
+        logger.info(f"Found {masks.shape[0]} masks automatically")
         
         for mi, mask in enumerate(masks):
             masked_image = image.copy()
@@ -283,7 +303,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         del model
         del processor
-        del results
+        del segmentations
         
         gc.collect()
         torch.cuda.empty_cache()
@@ -335,6 +355,9 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
                     scene_glb.add_geometry(geom)
             else:
                 scene_glb.add_geometry(output["glb"])
+        
+        gc.collect()
+        torch.cuda.empty_cache()
 
     if args.output_format == "ply":
         scene_gs.mininum_kernel_size = minimum_kernel_size
