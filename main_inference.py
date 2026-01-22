@@ -32,6 +32,10 @@ from sam3d_objects.data.dataset.tdfy.transforms_3d import compose_transform
 
 CACHE = {}
 
+DEVICE = "cuda"
+if not torch.cuda.is_available():
+    DEVICE = "cpu"
+
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -255,25 +259,21 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
     
     if args.mask_index == -1:
         masks = load_masks(os.path.dirname(args.image_path), extension=".png")
+        
     elif args.mask_index == -2:
+        # https://github.com/facebookresearch/sam-3d-objects/issues/81
+        # http://huggingface.co/docs/transformers/en/model_doc/sam3
+        
         from transformers import Sam3Processor, Sam3Model
         
-        model = Sam3Model.from_pretrained("facebook/sam3").to("cuda")
+        model = Sam3Model.from_pretrained("facebook/sam3").to(DEVICE)
         processor = Sam3Processor.from_pretrained("facebook/sam3")
         
-        prompts = [ 
-            "interior object", 
-            "furniture", 
-            "plant", 
-            "painting", 
-            "decoration",
-        ]
-
         inputs = processor(
-            images=[image.copy() for _ in range(len(prompts))], 
-            text=prompts, 
+            images=image, 
+            text="interior objects", 
             return_tensors="pt",
-        ).to("cuda")
+        ).to(DEVICE)    
         
         with torch.no_grad():
             outputs = model(**inputs)
@@ -286,18 +286,21 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         segmentations = processor.post_process_instance_segmentation(
             outputs,
-            threshold=0.5,
+            threshold=0.4,
             mask_threshold=0.4,
             target_sizes=target_sizes
         )[0]
         
         masks = segmentations["masks"].cpu().numpy().copy()
-        assert masks.shape[0] > 0
+        if masks.shape[0] == 0:
+            logger.error(f"No masks found.")
+            raise Exception
         
         logger.info(f"Found {masks.shape[0]} masks automatically")
         
         del model
         del processor
+        del outputs
         del segmentations
         
         gc.collect()
@@ -351,6 +354,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             else:
                 scene_glb.add_geometry(output["glb"])
         
+        del output
         gc.collect()
         torch.cuda.empty_cache()
 
