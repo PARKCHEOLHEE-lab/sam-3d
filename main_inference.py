@@ -296,11 +296,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         logger.info(f"Found {masks.shape[0]} masks automatically")
         
-        for mi, mask in enumerate(masks):
-            masked_image = image.copy()
-            masked_image[mask == 0] = 0
-            PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{mi:03d}.png"))
-        
         del model
         del processor
         del segmentations
@@ -375,8 +370,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{mi:03d}.png"))
 
         PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
-
-        _make_video([], output_path, scene_gs=scene_gs)
         
     if not use_inference_cache:
         del inference
