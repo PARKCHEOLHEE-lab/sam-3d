@@ -43,6 +43,18 @@ To set up the environment and pre-trained models, run these scripts in order:
    ```bash
    bash setup_a.sh
    ```
+   <br>
+
+   Even if you see the following messages after dependencies are installed, you can ignore them and proceed to the next step.
+
+   ```text
+   ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+   lightning 2.3.3 requires packaging<25.0,>=20.0, but you have packaging 25.0 which is incompatible.
+    ipykernel 7.1.0 requires jupyter-client>=8.0.0, but you have jupyter-client 7.4.9 which is incompatible.
+    vessl 0.1.199 requires google-cloud-storage<3.0.0,>=2.15.0, but you have google-cloud-storage 2.10.0 which is incompatible.
+    
+    WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+    ```
 
    <br>
 
