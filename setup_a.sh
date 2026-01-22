@@ -28,4 +28,6 @@ pip install \
     "huggingface-hub[cli]<1.0" \
     hydra-core==1.3.2
 
+pip install -U "git+https://github.com/huggingface/transformers"
+
 ./patching/hydra 

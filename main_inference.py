@@ -1,5 +1,6 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 import os
+import gc
 import sys
 import pytz
 import torch
@@ -63,7 +64,7 @@ def _parse_args() -> argparse.Namespace:
     
     args = parser.parse_args()
     
-    assert args.mask_index >= -1
+    assert args.mask_index >= -2
     assert args.export_images in ["true", "false"]
     assert args.output_format in ["glb", "ply"]
 
@@ -132,16 +133,16 @@ def _cache_inference():
 
 def generate_single_object(args: argparse.Namespace, output_path: str, use_inference_cache: bool = False) -> None:
     
+    # load image (RGBA only, mask is embedded in the alpha channel)
+    image = load_image(args.image_path)
+    mask = load_single_mask(os.path.dirname(args.image_path), index=args.mask_index)
+    
     # load model
     if use_inference_cache:
         inference = _cache_inference()
     else:
         config_path = f"checkpoints/hf/pipeline.yaml"
         inference = Inference(config_path, compile=False)
-        
-    # load image (RGBA only, mask is embedded in the alpha channel)
-    image = load_image(args.image_path)
-    mask = load_single_mask(os.path.dirname(args.image_path), index=args.mask_index)
     
     # run model
     output = inference(image, mask, seed=42)
@@ -249,16 +250,50 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         return output
     
+    # load image (RGBA only, mask is embedded in the alpha channel)
+    image = load_image(args.image_path)
+    
+    if args.mask_index == -1:
+        masks = load_masks(os.path.dirname(args.image_path), extension=".png")
+    elif args.mask_index == -2:
+        from transformers import Sam3Processor, Sam3Model
+        
+        model = Sam3Model.from_pretrained("facebook/sam3").to("cuda")
+        processor = Sam3Processor.from_pretrained("facebook/sam3")
+
+        inputs = processor(images=image, text="objects", return_tensors="pt").to("cuda")
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+        
+        results = processor.post_process_instance_segmentation(
+            outputs,
+            threshold=0.4,
+            mask_threshold=0.5,
+            target_sizes=inputs.get("original_sizes").tolist()
+        )[0]
+        
+        masks = results["masks"].cpu().numpy().copy()
+        assert masks.shape[0] > 0
+        
+        for mi, mask in enumerate(masks):
+            masked_image = image.copy()
+            masked_image[mask == 0] = 0
+            PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{mi:03d}.png"))
+        
+        del model
+        del processor
+        del results
+        
+        gc.collect()
+        torch.cuda.empty_cache()
+        
     # load model
     if use_inference_cache:
         inference = _cache_inference()
     else:
         config_path = f"checkpoints/hf/pipeline.yaml"
         inference = Inference(config_path, compile=False)
-    
-    # load image (RGBA only, mask is embedded in the alpha channel)
-    image = load_image(args.image_path)
-    masks = load_masks(os.path.dirname(args.image_path), extension=".png")
     
     scene_gs = None
     scene_glb = trimesh.Scene()
@@ -348,7 +383,7 @@ if __name__ == "__main__":
         
     # select generator
     generator = generate_single_object
-    if args.mask_index == -1:
+    if args.mask_index in (-1, -2):
         generator = generate_multi_object
         
     generator(args, output_path)
