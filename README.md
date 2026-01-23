@@ -82,20 +82,23 @@ To set up the environment and pre-trained models, run these scripts in order:
 
 The `main_inference.py` script can generate either a single object or an entire scene from an input image using pre-trained model weights.
 
-Arguments:
-- `--image_path`: Path to the input image (`.png`) file.
-- `--mask_index`: Index of the object mask to process; set to `-1` to process all masks and create a scene.
-- `--output_dir`: Directory to save results.
-- `--export_images`: If `true`, will save inference visualizations (masked objects and composite video).
-- `--output_format`: Output format for 3D objects, `glb` for mesh or `ply` for gaussian splats.
-
 <br> 
 
 ### Single Object Inference
 
 To generate a 3D object from a single mask, specify the image path and the index of the mask to use (`--mask_index=N`). For example, to extract the object using mask index 14:
 
-```python
+
+<div align="center" display="flex">
+    <img src="./notebook/images/shutterstock_modern_colorful_Interior_2620125197/26.png" width="40%"/>
+    <img src="./media/single-object.png" width="40%"/>
+    <br>
+    <i>From the left, input image · generated mesh</i>
+</div>
+
+<br>
+
+```bash
 python main_inference.py \
     --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
     --mask_index=14 \
@@ -108,12 +111,48 @@ python main_inference.py \
 
 ### Multi Object Inference
 
-To generate 3D meshes for all object masks in an input image and combine them into a scene, set `--mask_index=-1`:
+To generate 3D meshes for all object masks in an input image and combine them into a scene, set `--mask_index=-1`.
 
-```python
+Note that the sample data for inference includes pre-defined masks; setting `-1` uses these masks. If you want to run inference on your own images without providing specific masks, see "Inference with Auto Masking."
+
+
+<div align="center" display="flex">
+    <img src="./notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png" width="40%"/>
+    <img src="./media/multi-object.png" width="40%"/>
+    <br><br>
+    <i>From the left, input image · generated meshes</i>
+</div>
+
+<br>
+
+```bash
 python main_inference.py \
     --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
     --mask_index=-1 \
+    --output_dir=output \
+    --export_images=false \
+    --output_format=glb
+```
+
+<br>
+
+### Inference w/ Automatic Mask Generation
+
+If you do not have object masks for your input image, you can use automatic mask generation by setting `--mask_index=-2`. Originally, sam-3d-objects did not support auto-masking functionality; therefore, I added a pipeline that automatically segments interior objects. The pipeline uses [SAM](http://huggingface.co/docs/transformers/en/model_doc/sam3) to detect interior objects in the image before generating 3D models for each detected object.
+
+<div align="center" display="flex">
+    <img src="./notebook/images/9gFNBQJmk9WmdYWtkwfo45/image.png" width="40%"/>
+    <img src="./media/auto-masking.png" width="40%"/>
+    <br> <br>
+    <i>From the left, input image · generated meshes</i>
+</div>
+
+<br>
+
+```bash
+python main_inference.py \
+    --image_path=notebook/images/9gFNBQJmk9WmdYWtkwfo45/image.png \
+    --mask_index=-2 \
     --output_dir=output \
     --export_images=false \
     --output_format=glb
@@ -140,7 +179,7 @@ Arguments:
 
 To benchmark inference performance on all images in `./notebook/images/` (approximately 230 total object masks across all images), run:
  
-```python
+```bash
 python main_profile.py \
     --images_dir=./notebook/images/ \
     --output_dir=./output/_profile/ \
@@ -148,12 +187,12 @@ python main_profile.py \
     --save_profile_summary=false \
     --wait=0 \
     --warmup=1 \
-    --acive=3
+    --active=3
 ```
 
 <br>
 
-### Methods
+### Method
 
 Inference was executed for approximately 230 individual objects. For each object, the schedule was set to wait = 0, warmup = 1, active = 3, yielding a total of four runs per object. Only the three active-step wall-clock times were recorded and averaged to produce the reported per-object mean. Timing was measured as the difference of `time.perf_counter()` after calling `torch.cuda.synchronize()` at each iteration to enforce GPU synchronization.
 
