@@ -83,10 +83,13 @@ if __name__ == "__main__":
         output_path = os.path.join(args.output_dir, image_name)
         _make_output_dir(output_path)
         
+        mask_indices = range(len(os.listdir(os.path.dirname(args.image_path))) - 1)
+        if len(mask_indices) == 0:
+            continue
+        
         columns = ["mask_index"] + [f"elapsed_time_at_active_step_{k:03d}" for k in range(1, args.active + 1)] + ["elapsed_time_average"]
         rows = []
         
-        mask_indices = range(len(os.listdir(os.path.dirname(args.image_path))) - 1)
         for mask_index in reversed(mask_indices):
             
             try:
