@@ -261,7 +261,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         masks = load_masks(os.path.dirname(args.image_path), extension=".png")
         
     elif args.mask_index == -2:
-        # https://github.com/facebookresearch/sam-3d-objects/issues/81
         # http://huggingface.co/docs/transformers/en/model_doc/sam3
         
         from transformers import Sam3Processor, Sam3Model
