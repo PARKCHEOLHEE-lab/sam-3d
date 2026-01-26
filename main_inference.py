@@ -379,21 +379,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
 
 if __name__ == "__main__":
-    
-    """
-    for multi object:
-        python main_inference.py \
-            --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
-            --mask_index=-1 \
-            --export_images=true
-        
-    for single object:
-        python main_inference.py \
-            --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
-            --mask_index=14 \
-            --export_images=true
-    """
-    
     # parse arguments
     args = _parse_args()
     
