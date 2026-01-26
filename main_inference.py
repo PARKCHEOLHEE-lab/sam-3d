@@ -65,14 +65,34 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default="glb"
     )
+    parser.add_argument(
+        "--save_intermediate_result",
+        type=str,
+        default="false",
+        help="Save intermediate result of inference. It will only be used in multi object inference."
+    )
+    parser.add_argument(
+        "--sam_prompt",
+        type=str,
+        default="interior objects",
+        help="Prompt for SAM. It will only be used in multi object inference with automatic mask generation."
+    )
+    parser.add_argument(
+        "--sam_threshold",
+        type=float,
+        default=0.4,
+        help="Threshold for SAM. It will only be used in multi object inference with automatic mask generation."
+    )
     
     args = parser.parse_args()
     
     assert args.mask_index >= -2
     assert args.export_images in ["true", "false"]
     assert args.output_format in ["glb", "ply"]
-
+    assert args.save_intermediate_result in ["true", "false"]
+    
     args.export_images = args.export_images == "true"
+    args.save_intermediate_result = args.save_intermediate_result == "true"
     
     return args
 
@@ -267,10 +287,10 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         model = Sam3Model.from_pretrained("facebook/sam3").to(DEVICE)
         processor = Sam3Processor.from_pretrained("facebook/sam3")
-        
+
         inputs = processor(
             images=image, 
-            text="interior objects", 
+            text=args.sam_prompt, 
             return_tensors="pt",
         ).to(DEVICE)    
         
@@ -285,7 +305,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         segmentations = processor.post_process_instance_segmentation(
             outputs,
-            threshold=0.4,
+            threshold=args.sam_threshold,
             mask_threshold=0.4,
             target_sizes=target_sizes
         )[0]
@@ -322,6 +342,20 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
 
         # run model
         output = inference(image, mask, seed=42)
+        
+        if args.save_intermediate_result:
+            if args.output_format == "ply":
+                scene_gs.mininum_kernel_size = minimum_kernel_size
+                scene_gs.save_ply(os.path.join(output_path, f"_intermediate_{mask_index:03d}.ply"))
+            elif args.output_format == "glb":
+                scene_glb_intermediate = trimesh.Scene()
+                if isinstance(output["glb"], trimesh.Scene):
+                    for geom in output["glb"].geometry.values():
+                        scene_glb_intermediate.add_geometry(geom)
+                else:
+                    scene_glb_intermediate.add_geometry(output["glb"])
+                    
+                scene_glb_intermediate.export(os.path.join(output_path, f"_intermediate_{mask_index:03d}.glb"))
 
         # apply transformation
         output = _transform_output(output, minimum_kernel_size=minimum_kernel_size)
