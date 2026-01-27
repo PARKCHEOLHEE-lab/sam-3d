@@ -62,47 +62,46 @@ def generate_3d_from_image(args: argparse.Namespace) -> bool:
     output_path = os.path.join(args.output_dir, args.root_dir.split("/")[-1])
     os.makedirs(output_path, exist_ok=True)
 
-    # # single object
-    
-    # object_data_list = sorted(os.listdir(args.root_dir))
-    # for object_index, object_data in enumerate(object_data_list):
-    #     if (
-    #         object_data.startswith(".") 
-    #         or object_data.startswith("R")
-    #         or object_data.startswith("S")
-    #     ):
-    #         continue
+    # single object
+    object_data_list = sorted(os.listdir(args.root_dir))
+    for object_index, object_data in enumerate(object_data_list):
+        if (
+            object_data.startswith(".") 
+            or object_data.startswith("R")
+            or object_data.startswith("S")
+        ):
+            continue
         
-    #     object_image_path = os.path.join(
-    #         args.root_dir, 
-    #         object_data, 
-    #         "Image", 
-    #         f"{object_data}_IsoView1.png"
-    #     )
+        object_image_path = os.path.join(
+            args.root_dir, 
+            object_data, 
+            "Image", 
+            f"{object_data}_IsoView1.png"
+        )
         
-    #     if not os.path.exists(object_image_path):
-    #         object_image_path = object_image_path.replace("IsoView1", "Isoview1")
-    #         if not os.path.exists(object_image_path):
-    #             continue
+        if not os.path.exists(object_image_path):
+            object_image_path = object_image_path.replace("IsoView1", "Isoview1")
+            if not os.path.exists(object_image_path):
+                continue
         
-    #     single_object_output_path = os.path.join(output_path, f"Object{object_index}")
-    #     os.makedirs(single_object_output_path, exist_ok=True)
+        single_object_output_path = os.path.join(output_path, f"Object{object_index}")
+        os.makedirs(single_object_output_path, exist_ok=True)
 
-    #     # dummy mask index
-    #     args.mask_index = 0
-    #     args.image_path = object_image_path
-    #     generate_single_object(
-    #         args, 
-    #         single_object_output_path, 
-    #         mask=load_mask(object_image_path),
-    #         use_inference_cache=args.use_inference_cache
-    #     )
+        # dummy mask index
+        args.mask_index = 0
+        args.image_path = object_image_path
+        generate_single_object(
+            args, 
+            single_object_output_path, 
+            mask=load_mask(object_image_path),
+            use_inference_cache=args.use_inference_cache
+        )
         
-    #     os.remove(os.path.join(single_object_output_path, "mask_000.png"))
-    #     os.rename(
-    #         os.path.join(single_object_output_path, "object_000.glb"), 
-    #         os.path.join(single_object_output_path, "object.glb")
-    #     )
+        os.remove(os.path.join(single_object_output_path, "mask_000.png"))
+        os.rename(
+            os.path.join(single_object_output_path, "object_000.glb"), 
+            os.path.join(single_object_output_path, "object.glb")
+        )
         
     # multi object
     scene_output_path = os.path.join(output_path, "Scene")
