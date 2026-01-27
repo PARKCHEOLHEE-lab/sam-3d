@@ -5,7 +5,6 @@ import sys
 import pytz
 import torch
 import trimesh
-import imageio
 import datetime
 import argparse
 import PIL.Image
@@ -97,44 +96,6 @@ def _parse_args() -> argparse.Namespace:
     return args
 
 
-def _make_video(output: dict | list, output_dir: str, scene_gs: SceneVisualizer | None = None) -> None:
-    """Make a video from the output.
-
-    Args:
-        output (dict | list): Output from the model. It is a list if is_multi is True, otherwise a dict.
-        output_dir (str): Directory to save the video.
-    """
-    
-    # make a video
-    logger.info(f"Making a video...")
-    
-    if scene_gs is None:
-        if isinstance(output, list):
-            scene_gs = make_scene(*output, in_place=True)
-        else:
-            scene_gs = make_scene(output, in_place=True)
-
-    scene_gs = ready_gaussian_for_video_rendering(scene_gs)
-
-    video = render_video(
-        scene_gs,
-        r=1,
-        fov=60,
-        pitch_deg=15,
-        yaw_start_deg=-45,
-        resolution=512,
-    )["color"]
-
-    # save video as gif
-    imageio.mimsave(
-        os.path.join(output_dir, "_video.gif"),
-        video,
-        format="GIF",
-        duration=1000 / 30,  # default assuming 30fps from the input MP4
-        loop=0,  # 0 means loop indefinitely
-    )
-
-
 def _make_output_dir(output_dir: str):
     timestamp = datetime.datetime.now(pytz.timezone("Asia/Seoul")).strftime("%Y%m%d_%H%M%S")
     output_path = os.path.join(output_dir, timestamp)
@@ -185,9 +146,7 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
         masked_image[mask == 0] = 0
         PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{args.mask_index:03d}.png"))
         PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
-        
-        _make_video(output, output_path)
-
+  
     del output
     if not use_inference_cache:
         del inference
