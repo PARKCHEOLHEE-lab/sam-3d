@@ -286,13 +286,14 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         scene_mesh_vertices = scene_mesh.vertices.astype(np.float32)
         scene_mesh_centroid = scene_mesh_vertices.mean(axis=0)
 
+        # pca
         sigma = np.cov(scene_mesh_vertices - scene_mesh_centroid, rowvar=False)
         eigenvalues, eigenvectors = np.linalg.eigh(sigma)
         indices = eigenvalues.argsort()[::-1]
         eigenvalues = eigenvalues[indices]
         eigenvectors = eigenvectors[:, indices].T
         
-        # Apply transformation
+        # apply inverse of principal components
         for geometry in scene_glb.geometry.values():
             scene_mesh_vertices = geometry.vertices.astype(np.float32)
             geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ np.linalg.inv(eigenvectors)
