@@ -166,8 +166,6 @@ def main(args: argparse.Namespace) -> None:
         args.root_dir = os.path.join(args.dataset_dir, vsa_data)
         generate_3d_from_image(args)
         
-        # os.makedirs()
-
 
 if __name__ == "__main__":
     args = _parse_args()
