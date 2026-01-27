@@ -28,7 +28,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--sam_prompt",
         type=str,
-        default="interior object"
+        default="furniture"
     )
     parser.add_argument(
         "--sam_threshold",
@@ -44,6 +44,7 @@ def _parse_args() -> argparse.Namespace:
     args.export_images = True
     args.save_all_objects = True
     args.use_inference_cache = False
+    args.use_re_alignment = True
     
     return args
 
