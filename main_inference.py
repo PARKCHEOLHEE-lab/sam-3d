@@ -292,8 +292,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
     scene_glb.export(os.path.join(output_path, "scene.glb"))
     logger.info(f"Merged scene exported as GLB")
 
-    breakpoint()
-
     if args.export_images:
         for mi, mask in enumerate(masks):
             masked_image = image.copy()
@@ -342,8 +340,6 @@ def visualize_coordinate_frame(transform_matrix: np.ndarray, scale: float = 1.0,
             colors=[color]
         )
         scene.add_geometry(line, node_name=f"{name}_axis_{['X','Y','Z'][i]}")
-    
-    return scene
         
 
 if __name__ == "__main__":
