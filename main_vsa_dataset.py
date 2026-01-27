@@ -33,7 +33,6 @@ def _parse_args() -> argparse.Namespace:
         "--sam_threshold",
         type=float,
         default=0.27
-        # default=0.7
     )
     
     args = parser.parse_args()
