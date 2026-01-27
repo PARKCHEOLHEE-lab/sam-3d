@@ -7,12 +7,13 @@ import torch
 import trimesh
 import datetime
 import argparse
+import traceback
 import PIL.Image
 import numpy as np
 
 from loguru import logger
 from copy import deepcopy
-from pytorch3d.transforms import quaternion_multiply, quaternion_invert, quaternion_to_matrix
+from pytorch3d.transforms import quaternion_to_matrix
 
 sys.path.append("notebook")
 
@@ -21,10 +22,6 @@ from inference import (
     load_image, 
     load_single_mask, 
     load_masks,
-    make_scene, 
-    ready_gaussian_for_video_rendering,
-    render_video,
-    SceneVisualizer
 )
 
 from sam3d_objects.data.dataset.tdfy.transforms_3d import compose_transform
@@ -35,6 +32,15 @@ DEVICE = "cuda"
 if not torch.cuda.is_available():
     DEVICE = "cpu"
 
+_R_ZUP_TO_YUP = np.array(
+    [
+        [1, 0, 0],
+        [0, 0, -1],
+        [0, 1, 0],
+    ],
+    dtype=np.float32,
+)
+_R_YUP_TO_ZUP = _R_ZUP_TO_YUP.T
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -60,12 +66,7 @@ def _parse_args() -> argparse.Namespace:
         default="false"
     )
     parser.add_argument(
-        "--output_format",
-        type=str,
-        default="glb"
-    )
-    parser.add_argument(
-        "--save_intermediate_result",
+        "--save_all_objects",
         type=str,
         default="false",
         help="Save intermediate result of inference. It will only be used in multi object inference."
@@ -87,11 +88,10 @@ def _parse_args() -> argparse.Namespace:
     
     assert args.mask_index >= -2
     assert args.export_images in ["true", "false"]
-    assert args.output_format in ["glb", "ply"]
-    assert args.save_intermediate_result in ["true", "false"]
+    assert args.save_all_objects in ["true", "false"]
     
     args.export_images = args.export_images == "true"
-    args.save_intermediate_result = args.save_intermediate_result == "true"
+    args.save_all_objects = args.save_all_objects == "true"
     
     return args
 
@@ -116,12 +116,19 @@ def _cache_inference():
     return inference
 
 
-def generate_single_object(args: argparse.Namespace, output_path: str, use_inference_cache: bool = False) -> None:
+def generate_single_object(
+    args: argparse.Namespace, 
+    output_path: str, 
+    mask: np.ndarray = None,
+    use_inference_cache: bool = False
+) -> None:
     
     # load image (RGBA only, mask is embedded in the alpha channel)
     image = load_image(args.image_path)
-    mask = load_single_mask(os.path.dirname(args.image_path), index=args.mask_index)
     
+    if mask is None:
+        mask = load_single_mask(os.path.dirname(args.image_path), index=args.mask_index)
+        
     # load model
     if use_inference_cache:
         inference = _cache_inference()
@@ -131,21 +138,14 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
     
     # run model
     output = inference(image, mask, seed=42)
-
-    # export gaussian splat and mesh
-    if args.output_format == "ply":
-        logger.info(f"Exporting gaussian splat and mesh for mask index {args.mask_index:03d}...")
-        output["gs"].save_ply(os.path.join(output_path, f"splat_{args.mask_index:03d}.ply"))
     
-    elif args.output_format == "glb":
-        output["glb"].export(os.path.join(output_path, f"mesh_{args.mask_index:03d}.glb"))
-        logger.info(f"Gaussian splat and mesh for mask index {args.mask_index:03d} exported")
+    # export mesh
+    output["glb"].export(os.path.join(output_path, f"object_{args.mask_index:03d}.glb"))
+    logger.info(f"Gaussian splat and mesh for mask index {args.mask_index:03d} exported")
 
     if args.export_images:
-        masked_image = image.copy()
-        masked_image[mask == 0] = 0
-        PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{args.mask_index:03d}.png"))
-        PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
+        PIL.Image.fromarray(mask).save(os.path.join(output_path, f"mask_{args.mask_index:03d}.png"))
+        PIL.Image.fromarray(image).save(os.path.join(output_path, "image.png"))
   
     del output
     if not use_inference_cache:
@@ -154,83 +154,29 @@ def generate_single_object(args: argparse.Namespace, output_path: str, use_infer
 
 def generate_multi_object(args: argparse.Namespace, output_path: str, use_inference_cache: bool = False) -> None:
 
-    def _transform_output(
-        output: dict, 
-        in_place: bool = False, 
-        minimum_kernel_size: float = float("inf")
-    ) -> dict:
+    def _transform_output(output: dict, in_place: bool = False) -> dict:
+        
         if not in_place:
             output = deepcopy(output)
-            
-        if args.output_format == "ply":
-            # process gaussian
-            # move gaussians to scene frame of reference
-            PC = SceneVisualizer.object_pointcloud(
-                points_local=output["gaussian"][0].get_xyz.unsqueeze(0),
-                quat_l2c=output["rotation"],
-                trans_l2c=output["translation"],
-                scale_l2c=output["scale"],
-            )
-            output["gaussian"][0].from_xyz(PC.points_list()[0])
-            # must ... ROTATE
-            output["gaussian"][0].from_rotation(
-                quaternion_multiply(
-                    quaternion_invert(output["rotation"]),
-                    output["gaussian"][0].get_rotation,
-                )
-            )
-            scale = output["gaussian"][0].get_scaling
-            adjusted_scale = scale * output["scale"]
-            assert (
-                output["scale"][0, 0].item()
-                == output["scale"][0, 1].item()
-                == output["scale"][0, 2].item()
-            )
-            output["gaussian"][0].mininum_kernel_size *= output["scale"][0, 0].item()
-            adjusted_scale = torch.maximum(
-                adjusted_scale,
-                torch.tensor(
-                    output["gaussian"][0].mininum_kernel_size * 1.1,
-                    device=adjusted_scale.device,
-                ),
-            )
-            output["gaussian"][0].from_scaling(adjusted_scale)
-            minimum_kernel_size = min(
-                minimum_kernel_size,
-                output["gaussian"][0].mininum_kernel_size,
-            )
-            
-        elif args.output_format == "glb":
-            # https://github.com/facebookresearch/sam-3d-objects/issues/56#issuecomment-3614031150
 
-            _R_ZUP_TO_YUP = np.array(
-                [
-                    [1, 0, 0],
-                    [0, 0, -1],
-                    [0, 1, 0],
-                ],
-                dtype=np.float32,
-            )
-            _R_YUP_TO_ZUP = _R_ZUP_TO_YUP.T
-
-            # process glb
-            glb: trimesh.Trimesh
-            glb = output["glb"]
-            
-            vertices = glb.vertices.astype(np.float32) @ _R_YUP_TO_ZUP
-            vertices_tensor = torch.from_numpy(vertices).float().to(output["rotation"].device)
-
-            R_l2c = quaternion_to_matrix(output["rotation"])
-            l2c_transform = compose_transform(
-                scale=output["scale"],
-                rotation=R_l2c,
-                translation=output["translation"],
-            )
-            vertices = l2c_transform.transform_points(vertices_tensor.unsqueeze(0))
-            glb.vertices = vertices.squeeze(0).cpu().numpy() @ _R_ZUP_TO_YUP
-
-            output["glb"] = glb
+        # process glb
+        glb: trimesh.Trimesh
+        glb = output["glb"]
         
+        vertices = glb.vertices.astype(np.float32) @ _R_YUP_TO_ZUP
+        vertices_tensor = torch.from_numpy(vertices).float().to(output["rotation"].device)
+
+        R_l2c = quaternion_to_matrix(output["rotation"])
+        l2c_transform = compose_transform(
+            scale=output["scale"],
+            rotation=R_l2c,
+            translation=output["translation"],
+        )
+        vertices = l2c_transform.transform_points(vertices_tensor.unsqueeze(0))
+        glb.vertices = vertices.squeeze(0).cpu().numpy() @ _R_ZUP_TO_YUP
+        
+        output["glb"] = glb
+
         return output
     
     # load image (RGBA only, mask is embedded in the alpha channel)
@@ -283,6 +229,11 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         gc.collect()
         torch.cuda.empty_cache()
+    
+    else:
+        logger.error(f"Invalid mask index is given: {args.mask_index}")
+        logger.error(traceback.format_exc())
+        raise ValueError
         
     # load model
     if use_inference_cache:
@@ -291,9 +242,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         config_path = f"checkpoints/hf/pipeline.yaml"
         inference = Inference(config_path, compile=False)
     
-    scene_gs = None
     scene_glb = trimesh.Scene()
-    minimum_kernel_size = float("inf")
 
     for mask_index, mask in enumerate(masks):
         
@@ -302,73 +251,99 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         # run model
         output = inference(image, mask, seed=42)
         
-        if args.save_intermediate_result:
-            if args.output_format == "ply":
-                scene_gs.mininum_kernel_size = minimum_kernel_size
-                scene_gs.save_ply(os.path.join(output_path, f"_intermediate_{mask_index:03d}.ply"))
-            elif args.output_format == "glb":
-                scene_glb_intermediate = trimesh.Scene()
-                if isinstance(output["glb"], trimesh.Scene):
-                    for geom in output["glb"].geometry.values():
-                        scene_glb_intermediate.add_geometry(geom)
-                else:
-                    scene_glb_intermediate.add_geometry(output["glb"])
-                    
-                scene_glb_intermediate.export(os.path.join(output_path, f"_intermediate_{mask_index:03d}.glb"))
-
-        # apply transformation
-        output = _transform_output(output, minimum_kernel_size=minimum_kernel_size)
-            
-        if args.output_format == "ply":
-            minimum_kernel_size = min(
-                minimum_kernel_size,
-                output["gaussian"][0].mininum_kernel_size,
-            )
-
-            # merge gaussians
-            if scene_gs is None:
-                scene_gs = output["gaussian"][0]
-                
-            if mask_index > 0 and scene_gs is not None:
-                out_gs = output["gaussian"][0]
-                scene_gs._xyz = torch.cat([scene_gs._xyz, out_gs._xyz], dim=0)
-                scene_gs._features_dc = torch.cat(
-                    [scene_gs._features_dc, out_gs._features_dc], dim=0
-                )
-                scene_gs._scaling = torch.cat([scene_gs._scaling, out_gs._scaling], dim=0)
-                scene_gs._rotation = torch.cat([scene_gs._rotation, out_gs._rotation], dim=0)
-                scene_gs._opacity = torch.cat([scene_gs._opacity, out_gs._opacity], dim=0)
-        
-        elif args.output_format == "glb":
+        if args.save_all_objects:
+            scene_glb_intermediate = trimesh.Scene()
             if isinstance(output["glb"], trimesh.Scene):
                 for geom in output["glb"].geometry.values():
-                    scene_glb.add_geometry(geom)
+                    scene_glb_intermediate.add_geometry(geom)
             else:
-                scene_glb.add_geometry(output["glb"])
+                scene_glb_intermediate.add_geometry(output["glb"])
+                
+            scene_glb_intermediate.export(os.path.join(output_path, f"object_{mask_index:03d}.glb"))
+
+        # apply transformation
+        output = _transform_output(output)
+
+        if isinstance(output["glb"], trimesh.Scene):
+            for geom in output["glb"].geometry.values():
+                scene_glb.add_geometry(geom)
+        else:
+            scene_glb.add_geometry(output["glb"])
         
         del output
         gc.collect()
         torch.cuda.empty_cache()
+        
+    scene_mesh = scene_glb.to_mesh()
+    scene_mesh_vertices = scene_mesh.vertices.astype(np.float32)
+    scene_mesh_centroid = scene_mesh_vertices.mean(axis=0)
 
-    if args.output_format == "ply":
-        scene_gs.mininum_kernel_size = minimum_kernel_size
-        scene_gs.save_ply(os.path.join(output_path, "_merged_scene.ply"))
-        logger.info(f"Merged scene exported as PLY")
+    sigma = np.cov(scene_mesh_vertices - scene_mesh_centroid, rowvar=False)
+    eigenvalues, eigenvectors = np.linalg.eigh(sigma)
+    indices = eigenvalues.argsort()[::-1]
+    eigenvalues = eigenvalues[indices]
+    eigenvectors = eigenvectors[:, indices].T
+    
+    # Apply transformation
+    for geometry in scene_glb.geometry.values():
+        scene_mesh_vertices = geometry.vertices.astype(np.float32)
+        geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ np.linalg.inv(eigenvectors)
+                
+    scene_glb.export(os.path.join(output_path, "scene.glb"))
+    logger.info(f"Merged scene exported as GLB")
 
-    elif args.output_format == "glb":
-        scene_glb.export(os.path.join(output_path, "_merged_scene.glb"))
-        logger.info(f"Merged scene exported as GLB")
+    breakpoint()
 
     if args.export_images:
         for mi, mask in enumerate(masks):
             masked_image = image.copy()
             masked_image[mask == 0] = 0
-            PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"_masked_{mi:03d}.png"))
+            PIL.Image.fromarray(masked_image).save(os.path.join(output_path, f"mask_{mi:03d}.png"))
 
-        PIL.Image.fromarray(image).save(os.path.join(output_path, "_image.png"))
+        PIL.Image.fromarray(image).save(os.path.join(output_path, "image.png"))
         
     if not use_inference_cache:
         del inference
+        
+
+def visualize_coordinate_frame(transform_matrix: np.ndarray, scale: float = 1.0, name: str = "frame") -> trimesh.Scene:
+    """
+    Create a coordinate frame visualization from a 4x4 transform matrix.
+    
+    Args:
+        transform_matrix: 4x4 homogeneous transformation matrix
+        scale: length of axes
+        name: name for the frame
+    
+    Returns:
+        trimesh.Scene with coordinate axes (R=X, G=Y, B=Z)
+    """
+    origin = transform_matrix[:3, 3]
+    rotation = transform_matrix[:3, :3]
+    
+    # Create axis lines
+    axes_colors = [
+        [255, 0, 0, 255],    # Red = X
+        [0, 255, 0, 255],    # Green = Y
+        [0, 0, 255, 255],    # Blue = Z
+    ]
+    
+    scene = trimesh.Scene()
+    
+    for i, color in enumerate(axes_colors):
+        axis_direction = rotation[:, i]  # i-th column = i-th axis
+        end_point = origin + axis_direction * scale
+        
+        # Create line segment
+        vertices = np.array([origin, end_point])
+        line = trimesh.path.Path3D(
+            entities=[trimesh.path.entities.Line([0, 1])],
+            vertices=vertices,
+            colors=[color]
+        )
+        scene.add_geometry(line, node_name=f"{name}_axis_{['X','Y','Z'][i]}")
+    
+    return scene
         
 
 if __name__ == "__main__":

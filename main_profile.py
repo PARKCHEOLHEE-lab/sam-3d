@@ -62,7 +62,6 @@ def _parse_args() -> argparse.Namespace:
     args.save_profile_summary = args.save_profile_summary == "true"
 
     args.export_images = False
-    args.output_format = "glb"
 
     return args
 
