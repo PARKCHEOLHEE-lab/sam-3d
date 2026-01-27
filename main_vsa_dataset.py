@@ -13,6 +13,7 @@ sys.path.append("notebook")
 
 from inference import load_mask
 
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -156,10 +157,6 @@ def generate_3d_from_image(args: argparse.Namespace) -> bool:
                 os.path.join(output_path, output_name),
                 os.path.join(scene_output_path, output_name)
             )
-            
-            
-def plane_to_plane():
-    return
 
 
 def main(args: argparse.Namespace) -> None:
