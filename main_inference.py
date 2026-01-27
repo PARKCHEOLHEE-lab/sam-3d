@@ -304,44 +304,6 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         del inference
         
 
-def visualize_coordinate_frame(transform_matrix: np.ndarray, scale: float = 1.0, name: str = "frame") -> trimesh.Scene:
-    """
-    Create a coordinate frame visualization from a 4x4 transform matrix.
-    
-    Args:
-        transform_matrix: 4x4 homogeneous transformation matrix
-        scale: length of axes
-        name: name for the frame
-    
-    Returns:
-        trimesh.Scene with coordinate axes (R=X, G=Y, B=Z)
-    """
-    origin = transform_matrix[:3, 3]
-    rotation = transform_matrix[:3, :3]
-    
-    # Create axis lines
-    axes_colors = [
-        [255, 0, 0, 255],    # Red = X
-        [0, 255, 0, 255],    # Green = Y
-        [0, 0, 255, 255],    # Blue = Z
-    ]
-    
-    scene = trimesh.Scene()
-    
-    for i, color in enumerate(axes_colors):
-        axis_direction = rotation[:, i]  # i-th column = i-th axis
-        end_point = origin + axis_direction * scale
-        
-        # Create line segment
-        vertices = np.array([origin, end_point])
-        line = trimesh.path.Path3D(
-            entities=[trimesh.path.entities.Line([0, 1])],
-            vertices=vertices,
-            colors=[color]
-        )
-        scene.add_geometry(line, node_name=f"{name}_axis_{['X','Y','Z'][i]}")
-        
-
 if __name__ == "__main__":
     # parse arguments
     args = _parse_args()
