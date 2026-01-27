@@ -72,6 +72,11 @@ def _parse_args() -> argparse.Namespace:
         help="Save intermediate result of inference. It will only be used in multi object inference."
     )
     parser.add_argument(
+        "--use_re_alignment",
+        type=str,
+        default="false",
+    )
+    parser.add_argument(
         "--sam_prompt",
         type=str,
         default="interior objects",
@@ -89,10 +94,12 @@ def _parse_args() -> argparse.Namespace:
     assert args.mask_index >= -2
     assert args.export_images in ["true", "false"]
     assert args.save_all_objects in ["true", "false"]
+    assert args.use_re_alignment in ["true", "false"]
     
     args.export_images = args.export_images == "true"
     args.save_all_objects = args.save_all_objects == "true"
-    
+    args.use_re_alignment = args.use_re_alignment == "true"
+
     return args
 
 
@@ -274,20 +281,22 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         gc.collect()
         torch.cuda.empty_cache()
         
-    scene_mesh = scene_glb.to_mesh()
-    scene_mesh_vertices = scene_mesh.vertices.astype(np.float32)
-    scene_mesh_centroid = scene_mesh_vertices.mean(axis=0)
+    if args.use_re_alignment:
+        scene_mesh = scene_glb.to_mesh()
+        scene_mesh_vertices = scene_mesh.vertices.astype(np.float32)
+        scene_mesh_centroid = scene_mesh_vertices.mean(axis=0)
 
-    sigma = np.cov(scene_mesh_vertices - scene_mesh_centroid, rowvar=False)
-    eigenvalues, eigenvectors = np.linalg.eigh(sigma)
-    indices = eigenvalues.argsort()[::-1]
-    eigenvalues = eigenvalues[indices]
-    eigenvectors = eigenvectors[:, indices].T
-    
-    # Apply transformation
-    for geometry in scene_glb.geometry.values():
-        scene_mesh_vertices = geometry.vertices.astype(np.float32)
-        geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ np.linalg.inv(eigenvectors)
+        sigma = np.cov(scene_mesh_vertices - scene_mesh_centroid, rowvar=False)
+        eigenvalues, eigenvectors = np.linalg.eigh(sigma)
+        indices = eigenvalues.argsort()[::-1]
+        eigenvalues = eigenvalues[indices]
+        eigenvectors = eigenvectors[:, indices].T
+        
+        # Apply transformation
+        for geometry in scene_glb.geometry.values():
+            scene_mesh_vertices = geometry.vertices.astype(np.float32)
+            geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ np.linalg.inv(eigenvectors)
+            geometry.vertices = geometry.vertices @ _R_YUP_TO_ZUP
                 
     scene_glb.export(os.path.join(output_path, "scene.glb"))
     logger.info(f"Merged scene exported as GLB")
