@@ -225,7 +225,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         masks = segmentations["masks"].cpu().numpy().copy()
         if masks.shape[0] == 0:
             logger.error(f"No masks found.")
-            raise Exception
+            return
         
         logger.info(f"Found {masks.shape[0]} masks automatically")
         
