@@ -48,14 +48,6 @@ def _parse_args() -> argparse.Namespace:
 
 
 def generate_3d_from_image(args: argparse.Namespace) -> bool:
-    """_summary_
-
-    Args:
-        root_dir (str): _description_
-
-    Returns:
-        bool: _description_
-    """
     
     output_path = os.path.join(args.output_dir, args.root_dir.split("/")[-1])
     os.makedirs(output_path, exist_ok=True)
@@ -123,7 +115,7 @@ def generate_3d_from_image(args: argparse.Namespace) -> bool:
     if not os.path.exists(room_image_path):
         room_image_path = room_image_path.replace("IsoView1", "Isoview1")
         if not os.path.exists(room_image_path):
-            return False
+            return
 
     args.image_path = room_image_path
     generate_multi_object(args, output_path)
