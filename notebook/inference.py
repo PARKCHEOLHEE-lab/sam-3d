@@ -343,8 +343,6 @@ def check_hydra_safety(
 
 def load_image(path):
     image = Image.open(path)
-    if image.mode == "RGBA":
-        image = image.convert("RGB")
     image = np.array(image)
     image = image.astype(np.uint8)
     return image
