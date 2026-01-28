@@ -199,6 +199,9 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         model = Sam3Model.from_pretrained("facebook/sam3").to(DEVICE)
         processor = Sam3Processor.from_pretrained("facebook/sam3")
+        
+        if PIL.Image.fromarray(image).mode == "RGBA":
+            image = np.array(PIL.Image.fromarray(image).convert("RGB"))
 
         inputs = processor(
             images=image, 
@@ -281,11 +284,11 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         gc.collect()
         torch.cuda.empty_cache()
         
-    if args.use_re_alignment:
-        scene_mesh = scene_glb.to_mesh()
-        scene_mesh_vertices = scene_mesh.vertices.astype(np.float32)
-        scene_mesh_centroid = scene_mesh_vertices.mean(axis=0)
+    scene_mesh = scene_glb.to_mesh()
+    scene_mesh_vertices = scene_mesh.vertices.astype(np.float32)
+    scene_mesh_centroid = scene_mesh_vertices.mean(axis=0)
 
+    if args.use_re_alignment:
         # pca
         sigma = np.cov(scene_mesh_vertices - scene_mesh_centroid, rowvar=False)
         eigenvalues, eigenvectors = np.linalg.eigh(sigma)
@@ -303,6 +306,11 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             scene_mesh_vertices = geometry.vertices.astype(np.float32)
             geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ eigenvectors.T
             geometry.vertices = geometry.vertices @ _R_YUP_TO_ZUP
+            
+    else:
+        for geometry in scene_glb.geometry.values():
+            scene_mesh_vertices = geometry.vertices.astype(np.float32)
+            geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ _R_YUP_TO_ZUP
                 
     scene_glb.export(os.path.join(output_path, "scene.glb"))
     logger.info(f"Merged scene exported as GLB")
