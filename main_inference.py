@@ -289,6 +289,9 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         # pca
         sigma = np.cov(scene_mesh_vertices - scene_mesh_centroid, rowvar=False)
         eigenvalues, eigenvectors = np.linalg.eigh(sigma)
+
+        # check if the eigenvectors are orthonormal
+        assert np.allclose(np.dot(eigenvectors, eigenvectors.T), np.eye(3))
         
         # sort eigenvectors by descending order of eigenvalues
         indices = eigenvalues.argsort()[::-1]
