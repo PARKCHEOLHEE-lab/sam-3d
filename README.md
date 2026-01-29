@@ -249,7 +249,7 @@ For each dataset folder, the script executes a two-stage pipeline:
         │   └── object.glb
         └── ...
     ```
-    
+
     <br>
 
 2. Room Scene Processing
@@ -277,15 +277,8 @@ For each dataset folder, the script executes a two-stage pipeline:
 
 ### Re-alignment using PCA
 
-By default, the script applies principal component analysis (PCA) to re-align the merged scene geometry. This transformation rotates the scene such that its principal axes of variation align with the canonical coordinate axes, often producing more natural orientations for viewing and downstream processing.
+By default, the script applies PCA to re-align the merged scene geometry. This transformation rotates the scene such that its principal axes of variation align with the standard coordinates axes.
 
-The re-alignment process:
-1. Computes the centroid of all vertices in the merged scene
-2. Calculates the covariance matrix of vertex positions
-3. Extracts eigenvectors (principal components) via eigendecomposition
-4. Applies an affine transformation to align the scene with these principal axes
-
-This feature can be particularly useful when the original camera viewpoint produces oblique or unnatural scene orientations.
 
 <div align="center" display="flex">
     <img src="./media/R022_Isoview1.png" width="30%"/>
