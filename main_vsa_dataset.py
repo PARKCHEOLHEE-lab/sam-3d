@@ -154,7 +154,12 @@ def main(args: argparse.Namespace) -> None:
 
     vsa_dataset = sorted(os.listdir(args.dataset_dir))
     for vsa_data in vsa_dataset:
+        
+        if os.path.exists(os.path.join(args.output_dir, vsa_data)):
+            continue
+        
         args.root_dir = os.path.join(args.dataset_dir, vsa_data)
+
         generate_3d_from_image(args)
         
 
