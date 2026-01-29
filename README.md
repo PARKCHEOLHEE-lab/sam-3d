@@ -249,6 +249,8 @@ For each dataset folder, the script executes a two-stage pipeline:
         │   └── object.glb
         └── ...
     ```
+    
+    <br>
 
 2. Room Scene Processing
 
