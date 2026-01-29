@@ -260,6 +260,9 @@ For each dataset folder, the script executes a two-stage pipeline:
     ```
     VSA_output/
     └── R022/
+        ├── Object0/
+        ├── Object1/
+        ├── ...
         └── Scene/
             ├── 3d/
             │   ├── object_000.glb    # reconstructed object
