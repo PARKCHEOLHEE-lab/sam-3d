@@ -34,7 +34,7 @@ cd KOCCA-SAM3D
 
 <br>
 
-## Set Up Environment & Pretined Models 
+## Set Up Environment & Pretrained Models 
 
 To set up the environment and pre-trained models, run these scripts in order:
 
@@ -103,8 +103,7 @@ python main_inference.py \
     --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
     --mask_index=14 \
     --output_dir=output \
-    --export_images=false \
-    --output_format=glb
+    --export_images=false 
 ```
 
 <br>
@@ -131,14 +130,15 @@ python main_inference.py \
     --mask_index=-1 \
     --output_dir=output \
     --export_images=false \
-    --output_format=glb
+    --save_all_objects=false \
+    --use_re_alignment=false
 ```
 
 <br>
 
 ### Inference w/ Automatic Mask Generation
 
-If you do not have object masks for your input image, you can use automatic mask generation by setting `--mask_index=-2`. Originally, sam-3d-objects did not support auto-masking functionality; therefore, I added a pipeline that automatically segments interior objects. The pipeline uses [SAM](http://huggingface.co/docs/transformers/en/model_doc/sam3) to detect interior objects in the image before generating 3D models for each detected object.
+If you do not have object masks for your input image, you can use automatic mask generation by setting `--mask_index=-2`. Originally, sam-3d-objects did not support auto-masking functionality; therefore, a pipeline was added that automatically segments interior objects. The pipeline uses [SAM 3](http://huggingface.co/docs/transformers/en/model_doc/sam3) (`facebook/sam3`) to detect interior objects in the image before generating 3D models for each detected object. You can control the segmentation behavior through `--sam_prompt` and `--sam_threshold` parameters.
 
 <div align="center" display="flex">
     <img src="./notebook/images/9gFNBQJmk9WmdYWtkwfo45/image.png" width="40%"/>
@@ -155,23 +155,17 @@ python main_inference.py \
     --mask_index=-2 \
     --output_dir=output \
     --export_images=false \
-    --output_format=glb
+    --sam_prompt="interior objects" \
+    --sam_threshold=0.4
 ```
+
+The `--sam_prompt` parameter specifies what types of objects to detect (default: `"interior objects"`), while `--sam_threshold` controls the confidence threshold for mask generation (default: `0.4`). Lower thresholds detect more objects but may include false positives.
 
 <br>
 
 ## Profiling
 
 The `main_profile.py` script benchmarks inference speed for one or more images and outputs per-mask timing statistics.
-
-Arguments:
-- `--images_dir`: Directory containing subfolders for each image, each with its own `image.png` and masks.
-- `--output_dir`: Directory in which to save profiling results, including `_elapsed_time.csv`.
-- `--use_inference_cache`: If `true`, reuses the loaded model between runs (disables reloading overhead).
-- `--save_profile_summary`: If `true`, saves detailed PyTorch profiler summaries at each step.
-- `--wait`: Number of initial steps to skip timing (profiling "wait" phase).
-- `--warmup`: Number of warmup steps before timing.
-- `--active`: Number of measurement steps (timed "active" phase).
 
 <br>
 
@@ -216,4 +210,86 @@ On an NVIDIA A5000 GPU (24 GB VRAM), the mean wall-clock time per single-object 
 | **mean**                                                 | 37.063137248682075               | 36.85683911495199                | 37.09281825807841                | **37.004264873904155**          |
 
 <br>
+
 For multi-object inference, the pipeline still performs per-object inference independently and then merges the outputs into a single scene. The merging step increases memory requirements, so a GPU with at least 32 GB VRAM is likely necessary. Because multi-object scene generation time depends on the number of object masks in the image ($M$), a practical estimate is $M \times 30$ seconds if one assumes $30$ seconds for single-object generation.
+
+
+<br>
+
+## Processing `VSA_dataset`
+
+The `main_vsa_dataset.py` script automates the generation of 3D models for both individual objects and complete room scenes from a hierarchical dataset. Processing is skipped if the isometric room view `(*_IsoView1.png or *_Isoview1.png)` does not exist.
+
+
+```bash
+python main_vsa_dataset.py \
+    --dataset_dir=./VSA_dataset \
+    --output_dir=./VSA_output
+```
+
+<br>
+
+### Processing Pipeline
+
+For each dataset folder, the script executes a two-stage pipeline:
+
+1. Individual Object Processing
+
+    The script iterates through all object subfolders and generates a single 3D model for each object using its corresponding isometric view image. 
+
+    Output for individual objects:
+    ```
+    VSA_output/
+    └── R022/
+        ├── Object0/
+        │   ├── image.png
+        │   └── object.glb
+        ├── Object1/
+        │   ├── image.png
+        │   └── object.glb
+        └── ...
+    ```
+
+2. Room Scene Processing
+
+    The script processes the isometric room image using automatic mask generation (SAM with `--mask_index=-2`). Multiple objects are segmented and reconstructed independently before being merged into a unified scene representation.
+
+    Output for the room scene:
+    ```
+    VSA_output/
+    └── R022/
+        └── Scene/
+            ├── 3d/
+            │   ├── object_000.glb    # reconstructed object
+            │   ├── object_001.glb
+            │   └── ...
+            ├── mask/
+            │   ├── mask_000.png      # automatically segmented mask
+            │   ├── mask_001.png
+            │   └── ...
+            ├── image.png             # original room image
+            └── scene.glb             # merged scene
+    ```
+
+<br>
+
+### Re-alignment using PCA
+
+By default, the script applies principal component analysis (PCA) to re-align the merged scene geometry. This transformation rotates the scene such that its principal axes of variation align with the canonical coordinate axes, often producing more natural orientations for viewing and downstream processing.
+
+The re-alignment process:
+1. Computes the centroid of all vertices in the merged scene
+2. Calculates the covariance matrix of vertex positions
+3. Extracts eigenvectors (principal components) via eigendecomposition
+4. Applies an affine transformation to align the scene with these principal axes
+
+This feature can be particularly useful when the original camera viewpoint produces oblique or unnatural scene orientations.
+
+<div align="center" display="flex">
+    <img src="./media/R022_Isoview1.png" width="30%"/>
+    <img src="./media/scene_wo_realignment.jpg" width="30%"/>
+    <img src="./media/scene_w_realignment.jpg" width="30%"/>
+    <br>
+    <i>From the left, <br> 
+    input image · scene without re-alignment · scene with PCA re-alignment</i>
+</div>
