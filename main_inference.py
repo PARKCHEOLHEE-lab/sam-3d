@@ -303,14 +303,12 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         # apply inverse of principal components
         for geometry in scene_glb.geometry.values():
-            scene_mesh_vertices = geometry.vertices.astype(np.float32)
-            geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ eigenvectors.T
+            geometry.vertices = (geometry.vertices.astype(np.float32) - scene_mesh_centroid) @ eigenvectors.T
             geometry.vertices = geometry.vertices @ _R_YUP_TO_ZUP
             
     else:
         for geometry in scene_glb.geometry.values():
-            scene_mesh_vertices = geometry.vertices.astype(np.float32)
-            geometry.vertices = (scene_mesh_vertices - scene_mesh_centroid) @ _R_YUP_TO_ZUP
+            geometry.vertices = (geometry.vertices.astype(np.float32) - scene_mesh_centroid) @ _R_YUP_TO_ZUP
                 
     scene_glb.export(os.path.join(output_path, "scene.glb"))
     logger.info(f"Merged scene exported as GLB")
