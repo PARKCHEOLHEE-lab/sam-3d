@@ -88,6 +88,11 @@ def _parse_args() -> argparse.Namespace:
         default=0.4,
         help="Threshold for SAM. It will only be used in multi object inference with automatic mask generation."
     )
+    parser.add_argument(
+        "--sam_mask_threshold",
+        type=float,
+        default=0.4,
+    )
     
     args = parser.parse_args()
     
@@ -220,7 +225,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         segmentations = processor.post_process_instance_segmentation(
             outputs,
             threshold=args.sam_threshold,
-            mask_threshold=0.4,
+            mask_threshold=args.sam_mask_threshold,
             target_sizes=target_sizes
         )[0]
         
