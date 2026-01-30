@@ -306,38 +306,18 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             geometry.vertices = geometry.vertices @ _R_YUP_TO_ZUP
 
     elif args.re_alignment_mode == "obb":
-        to_origin, extents = trimesh.bounds.oriented_bounds(scene_mesh)
+        to_origin, _ = trimesh.bounds.oriented_bounds(scene_mesh)
         
-        # 3x3 회전 행렬 추출
-        R_obb = to_origin[:3, :3]
-        translation_obb = to_origin[:3, 3]
+        for geometry in scene_glb.geometry.values():
+            geometry.apply_transform(to_origin)
+            geometry.vertices = geometry.vertices @ np.array(
+                [
+                    [0, 1, 0],
+                    [-1, 0, 0],
+                    [0, 0, 1],
+                ]
+            )
         
-        # OBB 회전의 inverse (전치)를 사용하여 글로벌 축으로 정렬
-        R_inv = R_obb.T
-        
-        scene_mesh.vertices = scene_mesh.vertices @ R_inv
-        scene_mesh.vertices = scene_mesh.vertices @ _R_YUP_TO_ZUP
-        
-        scene_mesh.export("obb.glb")
-        
-        breakpoint()
-        
-        # # Y-up 좌표계 고려 (현재 mesh가 Y-up이라고 가정)
-        # # scene_mesh는 이미 합쳐진 상태이므로 각 geometry에 적용
-        # for geometry in scene_glb.geometry.values():
-        #     vertices = geometry.vertices.astype(np.float32)
-            
-        #     # 1. centroid로 이동
-        #     vertices_centered = vertices - scene_mesh_centroid
-            
-        #     # 2. OBB의 inverse rotation 적용 (글로벌 축에 정렬)
-        #     vertices_aligned = vertices_centered @ R_inv
-            
-        #     # 3. Y-up에서 Z-up으로 변환 (좌표계 통일)
-        #     vertices_final = vertices_aligned @ _R_YUP_TO_ZUP
-            
-        #     geometry.vertices = vertices_final
-            
     elif args.re_alignment_mode == "none":
         for geometry in scene_glb.geometry.values():
             geometry.vertices = (geometry.vertices.astype(np.float32) - scene_mesh_centroid) @ _R_YUP_TO_ZUP
