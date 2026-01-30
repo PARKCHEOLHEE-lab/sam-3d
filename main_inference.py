@@ -72,9 +72,9 @@ def _parse_args() -> argparse.Namespace:
         help="Save intermediate result of inference. It will only be used in multi object inference."
     )
     parser.add_argument(
-        "--use_re_alignment",
+        "--re_alignment_mode",
         type=str,
-        default="false",
+        default="pca",
     )
     parser.add_argument(
         "--sam_prompt",
@@ -94,11 +94,10 @@ def _parse_args() -> argparse.Namespace:
     assert args.mask_index >= -2
     assert args.export_images in ["true", "false"]
     assert args.save_all_objects in ["true", "false"]
-    assert args.use_re_alignment in ["true", "false"]
+    assert args.re_alignment_mode in ["pca", "obb", "none"]
     
     args.export_images = args.export_images == "true"
     args.save_all_objects = args.save_all_objects == "true"
-    args.use_re_alignment = args.use_re_alignment == "true"
 
     return args
 
@@ -288,7 +287,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
     scene_mesh_vertices = scene_mesh.vertices.astype(np.float32)
     scene_mesh_centroid = scene_mesh_vertices.mean(axis=0)
 
-    if args.use_re_alignment:
+    if args.re_alignment_mode == "pca":
         # pca
         sigma = np.cov(scene_mesh_vertices - scene_mesh_centroid, rowvar=False)
         eigenvalues, eigenvectors = np.linalg.eigh(sigma)
@@ -305,8 +304,41 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         for geometry in scene_glb.geometry.values():
             geometry.vertices = (geometry.vertices.astype(np.float32) - scene_mesh_centroid) @ eigenvectors.T
             geometry.vertices = geometry.vertices @ _R_YUP_TO_ZUP
+
+    elif args.re_alignment_mode == "obb":
+        to_origin, extents = trimesh.bounds.oriented_bounds(scene_mesh)
+        
+        # 3x3 회전 행렬 추출
+        R_obb = to_origin[:3, :3]
+        translation_obb = to_origin[:3, 3]
+        
+        # OBB 회전의 inverse (전치)를 사용하여 글로벌 축으로 정렬
+        R_inv = R_obb.T
+        
+        scene_mesh.vertices = scene_mesh.vertices @ R_inv
+        scene_mesh.vertices = scene_mesh.vertices @ _R_YUP_TO_ZUP
+        
+        scene_mesh.export("obb.glb")
+        
+        breakpoint()
+        
+        # # Y-up 좌표계 고려 (현재 mesh가 Y-up이라고 가정)
+        # # scene_mesh는 이미 합쳐진 상태이므로 각 geometry에 적용
+        # for geometry in scene_glb.geometry.values():
+        #     vertices = geometry.vertices.astype(np.float32)
             
-    else:
+        #     # 1. centroid로 이동
+        #     vertices_centered = vertices - scene_mesh_centroid
+            
+        #     # 2. OBB의 inverse rotation 적용 (글로벌 축에 정렬)
+        #     vertices_aligned = vertices_centered @ R_inv
+            
+        #     # 3. Y-up에서 Z-up으로 변환 (좌표계 통일)
+        #     vertices_final = vertices_aligned @ _R_YUP_TO_ZUP
+            
+        #     geometry.vertices = vertices_final
+            
+    elif args.re_alignment_mode == "none":
         for geometry in scene_glb.geometry.values():
             geometry.vertices = (geometry.vertices.astype(np.float32) - scene_mesh_centroid) @ _R_YUP_TO_ZUP
                 

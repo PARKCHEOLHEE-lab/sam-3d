@@ -42,7 +42,7 @@ def _parse_args() -> argparse.Namespace:
     args.export_images = True
     args.save_all_objects = True
     args.use_inference_cache = False
-    args.use_re_alignment = True
+    args.re_alignment_mode = "obb"
     
     return args
 
