@@ -334,6 +334,22 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             obb.apply_transform(to_origin)
             geometry.apply_transform(to_origin)
             
+            obb.vertices = obb.vertices @ np.array(
+                [
+                    [0, 1, 0],
+                    [-1, 0, 0],
+                    [0, 0, 1],
+                ]
+            )
+            geometry.vertices = geometry.vertices @ np.array(
+                [
+                    [0, 1, 0],
+                    [-1, 0, 0],
+                    [0, 0, 1],
+                ]
+            )
+            
+            
             scene_obbs.add_geometry(obb)
             
         scene_obbs.export("obbs.glb")
