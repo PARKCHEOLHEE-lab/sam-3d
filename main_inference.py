@@ -94,7 +94,7 @@ def _parse_args() -> argparse.Namespace:
     assert args.mask_index >= -2
     assert args.export_images in ["true", "false"]
     assert args.save_all_objects in ["true", "false"]
-    assert args.re_alignment_mode in ["pca", "obb", "none"]
+    assert args.re_alignment_mode in ["pca", "obb", "pch", "none"]
     
     args.export_images = args.export_images == "true"
     args.save_all_objects = args.save_all_objects == "true"
@@ -317,6 +317,27 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
                     [0, 0, 1],
                 ]
             )
+            
+    elif args.re_alignment_mode == "pch":
+        # assumptions: 
+        # 1. all bottom faces of the objects are approximately parallel to the global XY-plane
+        # 2. there no z-value objects
+        
+        scene_obbs = trimesh.Scene()
+        
+        to_origin, _ = trimesh.bounds.oriented_bounds(scene_mesh)
+        for geometry in scene_glb.geometry.values():
+            geometry_to_origin, extents = trimesh.bounds.oriented_bounds(geometry)
+            obb = trimesh.creation.box(extents)
+            
+            obb.apply_transform(np.linalg.inv(geometry_to_origin))
+            obb.apply_transform(to_origin)
+            geometry.apply_transform(to_origin)
+            
+            scene_obbs.add_geometry(obb)
+            
+        scene_obbs.export("obbs.glb")
+        scene_glb.export("scene.glb")
         
     elif args.re_alignment_mode == "none":
         for geometry in scene_glb.geometry.values():
