@@ -42,6 +42,14 @@ _R_ZUP_TO_YUP = np.array(
 )
 _R_YUP_TO_ZUP = _R_ZUP_TO_YUP.T
 
+YXZ = np.array(
+    [
+        [0, 1, 0], 
+        [-1, 0, 0], 
+        [0, 0, 1]
+    ]
+)
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -74,7 +82,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--re_alignment_mode",
         type=str,
-        default="pca",
+        default="obb+",
     )
     parser.add_argument(
         "--sam_prompt",
@@ -99,7 +107,7 @@ def _parse_args() -> argparse.Namespace:
     assert args.mask_index >= -2
     assert args.export_images in ["true", "false"]
     assert args.save_all_objects in ["true", "false"]
-    assert args.re_alignment_mode in ["pca", "obb", "pch", "none"]
+    assert args.re_alignment_mode in ["pca", "obb", "obb+", "none"]
     
     args.export_images = args.export_images == "true"
     args.save_all_objects = args.save_all_objects == "true"
@@ -152,7 +160,7 @@ def generate_single_object(
     
     # export mesh
     output["glb"].export(os.path.join(output_path, f"object_{args.mask_index:03d}.glb"))
-    logger.info(f"Gaussian splat and mesh for mask index {args.mask_index:03d} exported")
+    logger.info(f"Mesh for mask index {args.mask_index:03d} has been exported")
 
     if args.export_images:
         PIL.Image.fromarray(mask).save(os.path.join(output_path, f"mask_{args.mask_index:03d}.png"))
@@ -315,18 +323,15 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         
         for geometry in scene_glb.geometry.values():
             geometry.apply_transform(to_origin)
-            geometry.vertices = geometry.vertices @ np.array(
-                [
-                    [0, 1, 0],
-                    [-1, 0, 0],
-                    [0, 0, 1],
-                ]
-            )
+            geometry.vertices = geometry.vertices @ YXZ
             
-    elif args.re_alignment_mode == "pch":
+    elif args.re_alignment_mode == "obb+":
         # assumptions: 
-        # 1. all bottom faces of the objects are approximately parallel to the global XY-plane
-        # 2. there no z-value objects
+        # 1. The bottom face of each object's OBB represents the bottom face of the object.
+        # 2. all bottom faces of the objects are approximately parallel to the global XY-plane
+        # 3. there no z-value objects
+        
+        from scipy.spatial.transform import Rotation
         
         scene_obbs = trimesh.Scene()
         
@@ -335,37 +340,66 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             geometry_to_origin, extents = trimesh.bounds.oriented_bounds(geometry)
             obb = trimesh.creation.box(extents)
             
+            # create each OBB (Oriented Bounding Box)
             obb.apply_transform(np.linalg.inv(geometry_to_origin))
             obb.apply_transform(to_origin)
             geometry.apply_transform(to_origin)
+                        
+            # find the bottom face of the OBB
+            # we assume that the bottom face of OBB has the lowest z-value
+            faces_centroids = [obb.vertices[face].mean(axis=0) for face in obb.faces]
+            bottom_face_idx = np.argmin([c[0] for c in faces_centroids])
             
-            obb.vertices = obb.vertices @ np.array(
-                [
-                    [0, 1, 0],
-                    [-1, 0, 0],
-                    [0, 0, 1],
-                ]
-            )
-            geometry.vertices = geometry.vertices @ np.array(
-                [
-                    [0, 1, 0],
-                    [-1, 0, 0],
-                    [0, 0, 1],
-                ]
-            )
+            # compute the normal vector of the bottom face
+            face_verts = obb.vertices[obb.faces[bottom_face_idx]]
+            v1, v2 = face_verts[1] - face_verts[0], face_verts[2] - face_verts[0]
+            normal = np.cross(v1, v2)
+            normal = normal / np.linalg.norm(normal)
             
+            # to match z-up system
+            if normal[0] < 0:
+                normal = -normal
             
+            target = np.array([1, 0, 0])
+            axis = np.cross(normal, target)
+            if np.linalg.norm(axis) > 1e-6:
+                axis = axis / np.linalg.norm(axis)
+                angle = np.arccos(np.clip(np.dot(normal, target), -1, 1))
+                rotation_matrix = Rotation.from_rotvec(angle * axis).as_matrix()
+                
+                geometry_center = geometry.vertices.mean(axis=0)
+                obb_center = obb.vertices.mean(axis=0)
+                
+                # centralize the object to rotate it around its center
+                geometry.vertices -= geometry_center
+                obb.vertices -= obb_center
+                
+                geometry.vertices = geometry.vertices @ rotation_matrix.T
+                obb.vertices = obb.vertices @ rotation_matrix.T
+                
+                # uncentralize the object
+                geometry.vertices += geometry_center
+                obb.vertices += obb_center
+            
+            min_z = obb.vertices[:, 0].min()
+            geometry.vertices[:, 0] -= min_z
+            obb.vertices[:, 0] -= min_z
+            
+            # convert coordinates system to z-up system
+            obb.vertices = obb.vertices @ YXZ
+            geometry.vertices = geometry.vertices @ YXZ
+                        
             scene_obbs.add_geometry(obb)
             
-        scene_obbs.export("obbs.glb")
-        scene_glb.export("scene.glb")
+        logger.info(f"Used OBBs have been exported as GLB")
+        scene_obbs.export(os.path.join(output_path, "obbs.glb"))
         
     elif args.re_alignment_mode == "none":
         for geometry in scene_glb.geometry.values():
             geometry.vertices = (geometry.vertices.astype(np.float32) - scene_mesh_centroid) @ _R_YUP_TO_ZUP
                 
     scene_glb.export(os.path.join(output_path, "scene.glb"))
-    logger.info(f"Merged scene exported as GLB")
+    logger.info(f"Merged scene has been exported as GLB")
 
     if args.export_images:
         for mi, mask in enumerate(masks):
