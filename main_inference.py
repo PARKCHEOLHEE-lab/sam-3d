@@ -331,6 +331,8 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         # 2. all bottom faces of the objects are approximately parallel to the global XY-plane
         # 3. there no z-value objects
         
+        scene_glb.export(os.path.join(output_path, "scene_before_realignment.glb"))
+
         from scipy.spatial.transform import Rotation
         
         scene_obbs = trimesh.Scene()
@@ -356,12 +358,18 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             normal = np.cross(v1, v2)
             normal = normal / np.linalg.norm(normal)
             
-            # to match z-up system
-            if normal[0] < 0:
+            # check if the normal vector is pointing outward
+            obb_center = obb.vertices.mean(axis=0)
+            bottom_face_center = face_verts.mean(axis=0)
+            outward_direction = bottom_face_center - obb_center
+
+            # if not, reverse the normal vector to compute consistent cross product
+            if np.dot(normal, outward_direction) < 0:
                 normal = -normal
-            
-            target = np.array([1, 0, 0])
+
+            target = np.array([-1, 0, 0])
             axis = np.cross(normal, target)
+
             if np.linalg.norm(axis) > 1e-6:
                 axis = axis / np.linalg.norm(axis)
                 angle = np.arccos(np.clip(np.dot(normal, target), -1, 1))
