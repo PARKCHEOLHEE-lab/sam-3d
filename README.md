@@ -158,7 +158,7 @@ python main_inference.py \
     --re_alignment_mode="none" \
     --sam_prompt="interior objects" \
     --sam_threshold=0.4 \
-    --samsam_mask_threshold=0.4
+    --sam_mask_threshold=0.4
 ```
 
 The `--sam_prompt` parameter specifies what types of objects to detect (default: `"interior objects"`), while `--sam_threshold` controls the confidence threshold for mask generation (default: `0.4`). Lower thresholds detect more objects but may include false positives.
