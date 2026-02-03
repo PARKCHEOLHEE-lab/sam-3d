@@ -11,7 +11,7 @@
 
 ### Vessl Environment Setup
 To set up the DiffuScene environment in Vessl, set the Custom Image to `docker.io/cjfl2343/sam-3d:0.0.2`. This image was made for this project. The Docker image comes from the [`Dockerfile.sam-3d`](Dockerfile.sam-3d) file in this repository.
-**Since this image uses CUDA 12.1 and SAM 3D requires at least 32GB of VRAM for multi-object inference, it is recommended to use a node `eve-s01`, `space-01` or similar node. **
+**Since this image uses CUDA 12.1 and SAM 3D requires at least 32GB of VRAM for multi-object inference, it is recommended to use a node `eve-s01`, `space-01` or similar node.**
 
 
 <div align="center" >
@@ -103,7 +103,8 @@ python main_inference.py \
     --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
     --mask_index=14 \
     --output_dir=output \
-    --export_images=false 
+    --export_images=false \
+    --re_alignment_mode="none"
 ```
 
 <br>
@@ -130,8 +131,7 @@ python main_inference.py \
     --mask_index=-1 \
     --output_dir=output \
     --export_images=false \
-    --save_all_objects=false \
-    --use_re_alignment=false
+    --re_alignment_mode="none"
 ```
 
 <br>
@@ -155,8 +155,10 @@ python main_inference.py \
     --mask_index=-2 \
     --output_dir=output \
     --export_images=false \
+    --re_alignment_mode="none" \
     --sam_prompt="interior objects" \
-    --sam_threshold=0.4
+    --sam_threshold=0.4 \
+    --samsam_mask_threshold=0.4
 ```
 
 The `--sam_prompt` parameter specifies what types of objects to detect (default: `"interior objects"`), while `--sam_threshold` controls the confidence threshold for mask generation (default: `0.4`). Lower thresholds detect more objects but may include false positives.
@@ -216,6 +218,71 @@ For multi-object inference, the pipeline still performs per-object inference ind
 
 <br>
 
+## Post Processing
+
+### Scene Re-alignment Modes
+
+After merging per-object results, the script can re-align the scene geometry. The main options (`--re_alignment_mode`) are:
+
+- `none`: No transformation is applied (default).
+- `pca`: Applies PCA to align the scene's main axes with the coordinate axes.
+- `obb`: Uses an oriented bounding box (OBB) of the entire scene for alignment.
+- `obb+`: For each object, computes its OBB and re-orients so that its bottom face is parallel to the XY-plane 
+
+<br>
+
+The `obb+` mode assumes:
+1. Each object's OBB bottom face is its true bottom.
+2. Object bottoms are nearly parallel to the global XY-plane.
+3. There are no "floating" (z-offset) objects.
+
+<div align="center" display="flex">
+    <img src="./media/r030.png" width="30%"/>
+    <img src="./media/r030-before-realignment.png" width="30%"/>
+    <img src="./media/r030-after-realignment.png" width="30%"/>
+    <br>
+    <i>From the left, <br> 
+    input image · scene without re-alignment · scene with re-alignment</i>
+</div>
+
+<br>
+
+```bash
+python main_inference.py \
+    --image_path=notebook/images/_R022/image.png \
+    --mask_index=-2 \
+    --output_dir=output \
+    --re_alignment_mode="obb+" \
+    --sam_prompt="furniture" \
+    --sam_threshold=0.27
+```
+
+<br><br>
+
+<div align="center" display="flex">
+    <img src="./media/r022.png" width="30%"/>
+    <img src="./media/r022-before-realignment.png" width="30%"/>
+    <img src="./media/r022-after-realignment.png" width="30%"/>
+    <br>
+    <i>From the left, <br> 
+    input image · scene without re-alignment · scene with re-alignment</i>
+</div>
+
+<br>
+
+
+```bash
+python main_inference.py \
+    --image_path=notebook/images/_R022/image-iso.png \
+    --mask_index=-2 \
+    --output_dir=output \
+    --re_alignment_mode="obb+" \
+    --sam_prompt="furniture" \
+    --sam_threshold=0.27
+```
+
+<br>
+
 ## Processing `VSA_dataset`
 
 The `main_vsa_dataset.py` script automates the generation of 3D models for both individual objects and complete room scenes from a hierarchical dataset. Processing is skipped if the isometric room view `(*_IsoView1.png or *_Isoview1.png)` does not exist.
@@ -224,8 +291,11 @@ The `main_vsa_dataset.py` script automates the generation of 3D models for both 
 ```bash
 python main_vsa_dataset.py \
     --dataset_dir=./VSA_dataset \
-    --output_dir=./VSA_output
+    --output_dir=./VSA_output \
+    --sam_prompt="furniture" \
+    --sam_threshold=0.27
 ```
+
 
 <br>
 
@@ -275,19 +345,3 @@ For each dataset folder, the script executes a two-stage pipeline:
             ├── image.png             # original room image
             └── scene.glb             # merged scene
     ```
-
-<br>
-
-### Re-alignment using PCA
-
-By default, the script applies PCA to re-align the merged scene geometry. This transformation rotates the scene such that its principal axes of variation align with the standard coordinates axes.
-
-
-<div align="center" display="flex">
-    <img src="./media/R022_Isoview1.png" width="30%"/>
-    <img src="./media/scene_wo_realignment.jpg" width="30%"/>
-    <img src="./media/scene_w_realignment.jpg" width="30%"/>
-    <br>
-    <i>From the left, <br> 
-    input image · scene without re-alignment · scene with PCA re-alignment</i>
-</div>
