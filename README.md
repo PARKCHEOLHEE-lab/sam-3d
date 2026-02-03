@@ -100,8 +100,8 @@ To generate a 3D object from a single mask, specify the image path and the index
 
 ```bash
 python main_inference.py \
-    --image_path=notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png \
-    --mask_index=14 \
+    --image_path=notebook/images/shutterstock_modern_colorful_Interior_2620125197/image.png \
+    --mask_index=26 \
     --output_dir=output \
     --export_images=false \
     --re_alignment_mode="none"
