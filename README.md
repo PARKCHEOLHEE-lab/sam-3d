@@ -131,6 +131,7 @@ python main_inference.py \
     --mask_index=-1 \
     --output_dir=output \
     --export_images=false \
+    --save_all_objects=false \
     --re_alignment_mode="none"
 ```
 
@@ -155,6 +156,7 @@ python main_inference.py \
     --mask_index=-2 \
     --output_dir=output \
     --export_images=false \
+    --save_all_objects=false \
     --re_alignment_mode="none" \
     --sam_prompt="interior objects" \
     --sam_threshold=0.4 \
