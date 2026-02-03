@@ -10,7 +10,7 @@
 ## Installation
 
 ### Vessl Environment Setup
-To set up the DiffuScene environment in Vessl, set the Custom Image to `docker.io/cjfl2343/sam-3d:0.0.2`. This image was made for this project. The Docker image comes from the [`Dockerfile.sam-3d`](Dockerfile.sam-3d) file in this repository.
+To set up the SAM3D environment in Vessl, set the Custom Image to `docker.io/cjfl2343/sam-3d:0.0.2`. This image was made for this project. The Docker image comes from the [`Dockerfile.sam-3d`](Dockerfile.sam-3d) file in this repository.
 **Since this image uses CUDA 12.1 and SAM 3D requires at least 32GB of VRAM for multi-object inference, it is recommended to use a node `eve-s01`, `space-01` or similar node.**
 
 
@@ -86,7 +86,7 @@ The `main_inference.py` script can generate either a single object or an entire 
 
 ### Single Object Inference
 
-To generate a 3D object from a single mask, specify the image path and the index of the mask to use (`--mask_index=N`). For example, to extract the object using mask index 14:
+To generate a 3D object from a single mask, specify the image path and the index of the mask to use (`--mask_index=N`). For example, to extract the object using mask index 26:
 
 
 <div align="center" display="flex">
@@ -139,7 +139,7 @@ python main_inference.py \
 
 ### Inference w/ Automatic Mask Generation
 
-If you do not have object masks for your input image, you can use automatic mask generation by setting `--mask_index=-2`. Originally, sam-3d-objects did not support auto-masking functionality; therefore, a pipeline was added that automatically segments interior objects. The pipeline uses [SAM 3](http://huggingface.co/docs/transformers/en/model_doc/sam3) (`facebook/sam3`) to detect interior objects in the image before generating 3D models for each detected object. You can control the segmentation behavior through `--sam_prompt` and `--sam_threshold` parameters.
+If you do not have object masks for your input image, you can use automatic mask generation by setting `--mask_index=-2`. Originally, sam-3d-objects did not support auto-masking functionality; therefore, a pipeline was added that automatically segments interior objects. The pipeline uses [SAM 3](http://huggingface.co/docs/transformers/en/model_doc/sam3) (`facebook/sam3`) to detect interior objects in the image before generating 3D models for each detected object. You can control the segmentation behavior through `--sam_prompt`, `--sam_threshold` and `--sam_mask_threshold` parameters.
 
 <div align="center" display="flex">
     <img src="./notebook/images/_9gFNBQJmk9WmdYWtkwfo45/image.png" width="40%"/>
@@ -163,7 +163,7 @@ python main_inference.py \
     --sam_mask_threshold=0.4
 ```
 
-The `--sam_prompt` parameter specifies what types of objects to detect (default: `"interior objects"`), while `--sam_threshold` controls the confidence threshold for mask generation (default: `0.4`). Lower thresholds detect more objects but may include false positives.
+The `--sam_prompt` parameter specifies what types of objects to detect (default: `"interior objects"`). You can also tune `--sam_threshold` and `--sam_mask_threshold` to control segmentation sensitivity.
 
 <br>
 
