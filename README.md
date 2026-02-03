@@ -142,7 +142,7 @@ python main_inference.py \
 If you do not have object masks for your input image, you can use automatic mask generation by setting `--mask_index=-2`. Originally, sam-3d-objects did not support auto-masking functionality; therefore, a pipeline was added that automatically segments interior objects. The pipeline uses [SAM 3](http://huggingface.co/docs/transformers/en/model_doc/sam3) (`facebook/sam3`) to detect interior objects in the image before generating 3D models for each detected object. You can control the segmentation behavior through `--sam_prompt` and `--sam_threshold` parameters.
 
 <div align="center" display="flex">
-    <img src="./notebook/images/9gFNBQJmk9WmdYWtkwfo45/image.png" width="40%"/>
+    <img src="./notebook/images/_9gFNBQJmk9WmdYWtkwfo45/image.png" width="40%"/>
     <img src="./media/auto-masking.png" width="40%"/>
     <br> <br>
     <i>From the left, input image · generated meshes</i>
@@ -152,7 +152,7 @@ If you do not have object masks for your input image, you can use automatic mask
 
 ```bash
 python main_inference.py \
-    --image_path=notebook/images/9gFNBQJmk9WmdYWtkwfo45/image.png \
+    --image_path=notebook/images/_9gFNBQJmk9WmdYWtkwfo45/image.png \
     --mask_index=-2 \
     --output_dir=output \
     --export_images=false \
