@@ -77,7 +77,10 @@ if __name__ == "__main__":
 
     image_names = os.listdir(args.images_dir)
     for image_name in image_names:
-
+        
+        if image_name.startswith("_"):
+            continue
+        
         args.image_path = os.path.join(args.images_dir, image_name, "image.png")
         output_path = os.path.join(args.output_dir, image_name)
         _make_output_dir(output_path)
