@@ -82,7 +82,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--re_alignment_mode",
         type=str,
-        default="obb+",
+        default="none",
     )
     parser.add_argument(
         "--sam_prompt",
@@ -329,7 +329,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
         # assumptions: 
         # 1. The bottom face of each object's OBB represents the bottom face of the object.
         # 2. all bottom faces of the objects are approximately parallel to the global XY-plane
-        # 3. there no z-value objects
+        # 3. there are no z-value objects
         
         scene_glb.export(os.path.join(output_path, "scene_before_realignment.glb"))
 
@@ -400,7 +400,7 @@ def generate_multi_object(args: argparse.Namespace, output_path: str, use_infere
             scene_obbs.add_geometry(obb)
             
         logger.info(f"Used OBBs have been exported as GLB")
-        scene_obbs.export(os.path.join(output_path, "obbs.glb"))
+        scene_obbs.export(os.path.join(output_path, "scene_obbs.glb"))
         
     elif args.re_alignment_mode == "none":
         for geometry in scene_glb.geometry.values():
