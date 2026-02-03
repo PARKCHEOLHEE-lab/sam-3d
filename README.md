@@ -337,13 +337,15 @@ For each dataset folder, the script executes a two-stage pipeline:
         ├── ...
         └── Scene/
             ├── 3d/
-            │   ├── object_000.glb    # reconstructed object
+            │   ├── object_000.glb                  # reconstructed object
             │   ├── object_001.glb
             │   └── ...
             ├── mask/
-            │   ├── mask_000.png      # automatically segmented mask
+            │   ├── mask_000.png                    # automatically segmented mask
             │   ├── mask_001.png
             │   └── ...
-            ├── image.png             # original room image
-            └── scene.glb             # merged scene
+            ├── image.png                           # original room image
+            ├── scene_before_realignment.png        # merged scene before applying realignment
+            ├── scene_obbs.png                      # oriented bounding boxes corresponding to all objects 
+            └── scene.glb                           # merged scene
     ```
