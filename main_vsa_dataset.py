@@ -43,6 +43,7 @@ def _parse_args() -> argparse.Namespace:
     args.save_all_objects = True
     args.use_inference_cache = False
     args.re_alignment_mode = "obb+"
+    args.sam_mask_threshold = 0.4
     
     return args
 
